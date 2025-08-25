@@ -1,0 +1,43 @@
+
+---
+
+## 🔹 `.gitignore`
+
+```gitignore
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist/
+build/
+.cache/
+
+# Logs
+logs/
+*.log
+*.out
+*.pid
+*.seed
+*.gz
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Others
+*.swp
+*.swo
+
+*.venv
