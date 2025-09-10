@@ -20,17 +20,17 @@ const authLimiter = rateLimit({
 // Get all users (protected route for admin)
 router.get("/", authenticate, async (req, res) => {
   try {
-    const users = await User.find({}, '-password');
+    const users = await User.find({}, '-passwordHash');
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
-// Get user by email (for login verification)
-router.get("/email/:email", async (req, res) => {
+// Get user by email address (for login verification)
+router.get("/email/:emailAddress", async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email });
+    const user = await User.findOne({ emailAddress: req.params.emailAddress.toLowerCase() });
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -59,19 +59,21 @@ router.get("/profile", authenticate, async (req, res) => {
 // Register new user
 router.post("/register", validateRegistration, handleValidationErrors, async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { fullName, contactNumber, emailAddress, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ emailAddress: emailAddress.toLowerCase() });
     if (existingUser) {
-      return res.status(400).json({ error: "Email already registered" });
+      return res.status(400).json({ error: "Email address already registered" });
     }
 
     // Create new user
     const newUser = new User({
-      email: email.toLowerCase(),
-      password,
-      name: name.trim()
+      fullName: fullName.trim(),
+      contactNumber: contactNumber.trim(),
+      emailAddress: emailAddress.toLowerCase(),
+      passwordHash: password,
+      profilePicture: 'default-avatar.svg' // Set default avatar
     });
 
     await newUser.save();
@@ -95,12 +97,12 @@ router.post("/register", validateRegistration, handleValidationErrors, async (re
 // Login user
 router.post("/login", authLimiter, validateLogin, handleValidationErrors, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { emailAddress, password } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Find user by email address
+    const user = await User.findOne({ emailAddress: emailAddress.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid email address or password" });
     }
 
     // Check if account is active
@@ -111,7 +113,7 @@ router.post("/login", authLimiter, validateLogin, handleValidationErrors, async 
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid email address or password" });
     }
 
     // Update last login

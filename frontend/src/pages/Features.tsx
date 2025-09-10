@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -18,76 +19,34 @@ import {
 
 export const Features = () => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const navigate = useNavigate();
+
+  const navigateToSearch = () => {
+    navigate("/#search");
+  };
 
   const mainFeatures = [
     {
       icon: Search,
-      title: "Smart Price Tracking",
-      description: "Advanced AI algorithms monitor prices across 50+ marketplaces in real-time",
+      title: "Product Search",
+      description: "Search and discover products on your favorite marketplaces",
       details: [
-        "Real-time price monitoring across Amazon, eBay, AliExpress, and more",
-        "Smart product matching using AI and computer vision",
-        "Historical price data with trend analysis",
-        "Price prediction algorithms to forecast future trends"
+        "Easy search across multiple marketplaces including Daraz, Amazon, and more",
+        "Detailed product information including prices, ratings, and availability",
+        "Real-time updates to ensure accurate pricing information"
       ],
       image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop"
     },
     {
       icon: Bell,
-      title: "Instant Price Alerts",
-      description: "Get notified the moment prices drop below your target threshold",
+      title: "Price Alerts",
+      description: "Get notified when the prices of your tracked products drop",
       details: [
-        "Customizable price drop alerts with percentage thresholds",
-        "Multi-channel notifications (email, SMS, push, in-app)",
-        "Smart alert timing to avoid notification fatigue",
-        "Bulk alert management for multiple products"
+        "Set custom alerts for price drops on specific products",
+        "Notifications via email and in-app alerts",
+        "Track multiple products and get alerts when they become affordable"
       ],
       image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&h=400&fit=crop"
-    },
-    {
-      icon: BarChart,
-      title: "Advanced Analytics",
-      description: "Comprehensive insights and analytics to optimize your purchasing decisions",
-      details: [
-        "Interactive price history charts with zoom and filtering",
-        "Seasonal trend analysis and purchasing recommendations",
-        "Savings calculator showing total money saved",
-        "Market analysis with competitor pricing insights"
-      ],
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop"
-    }
-  ];
-
-  const additionalFeatures = [
-    {
-      icon: Heart,
-      title: "Smart Wishlist",
-      description: "Organize and prioritize your tracked products with intelligent recommendations"
-    },
-    {
-      icon: Shield,
-      title: "Deal Verification",
-      description: "AI-powered authenticity checks to ensure legitimate deals and prevent scams"
-    },
-    {
-      icon: Globe,
-      title: "Global Coverage",
-      description: "Track prices across international marketplaces with currency conversion"
-    },
-    {
-      icon: Smartphone,
-      title: "Mobile Apps",
-      description: "Native iOS and Android apps with offline functionality"
-    },
-    {
-      icon: Clock,
-      title: "Price History",
-      description: "Access up to 2 years of historical pricing data and trends"
-    },
-    {
-      icon: Zap,
-      title: "Lightning Fast",
-      description: "Sub-second price updates with our optimized monitoring infrastructure"
     }
   ];
 
@@ -211,106 +170,11 @@ export const Features = () => {
         </div>
       </section>
 
-      {/* Additional Features Grid */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
-              More Powerful Features
-            </h2>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              Discover additional tools that make price tracking effortless
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {additionalFeatures.map((feature, index) => (
-              <div 
-                key={index}
-                className="p-6 rounded-xl border transition-all duration-500 hover:scale-105 hover:border-cyan-400/50 group"
-                style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(34, 211, 238, 0.1)",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)"
-                }}
-              >
-                <div 
-                  className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                  style={{
-                    background: "rgba(34, 211, 238, 0.1)",
-                    boxShadow: "0 0 20px rgba(34, 211, 238, 0.2)"
-                  }}
-                >
-                  <feature.icon className="h-7 w-7 text-cyan-400" />
-                </div>
-                
-                <h3 className="text-xl font-semibold mb-3 text-white group-hover:text-cyan-400 transition-colors">
-                  {feature.title}
-                </h3>
-                
-                <p className="text-slate-400 leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Comparison */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
-              Why Choose PriceTracker?
-            </h2>
-          </div>
-
-          <div 
-            className="rounded-2xl p-8 border"
-            style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              border: "1px solid rgba(34, 211, 238, 0.1)",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)"
-            }}
-          >
-            <div className="grid md:grid-cols-3 gap-8 text-center">
-              <div className="space-y-4">
-                <div className="text-3xl font-bold text-cyan-400">50+</div>
-                <div className="text-white font-semibold">Marketplaces</div>
-                <div className="text-slate-400 text-sm">
-                  Track prices across all major shopping platforms
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="text-3xl font-bold text-green-400">24/7</div>
-                <div className="text-white font-semibold">Monitoring</div>
-                <div className="text-slate-400 text-sm">
-                  Continuous price monitoring with instant updates
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="text-3xl font-bold text-purple-400">99.9%</div>
-                <div className="text-white font-semibold">Accuracy</div>
-                <div className="text-slate-400 text-sm">
-                  Reliable price data you can trust for decisions
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl text-center">
-          <div 
+          <div
             className="p-12 rounded-2xl border"
             style={{
               background: "rgba(255, 255, 255, 0.05)",
@@ -326,11 +190,12 @@ export const Features = () => {
                   Start Saving Today
                 </h2>
                 <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-                  Join thousands of smart shoppers who save an average of $2,000+ per year
+                  Sign up to start tracking prices and saving money effortlessly
                 </p>
               </div>
 
-              <Button 
+              <Button
+                onClick={navigateToSearch}
                 size="lg"
                 className="px-12 py-4 text-lg font-medium transition-all duration-300 hover:scale-105"
                 style={{
@@ -339,7 +204,7 @@ export const Features = () => {
                   boxShadow: "0 6px 25px rgba(34, 211, 238, 0.4)"
                 }}
               >
-                Try All Features Free
+                Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>

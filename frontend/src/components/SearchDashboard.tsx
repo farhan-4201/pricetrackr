@@ -3,39 +3,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Grid, List, Zap, TrendingDown } from "lucide-react";
+import { Search, Filter, Grid, List, Zap, TrendingDown, Loader2 } from "lucide-react";
+import { productsAPI } from "@/lib/api";
+import { toast } from "sonner";
 
 // ---- Define product type ----
-type Product = {
-  id: string;
+type ScrapedProduct = {
   name: string;
-  image: string;
-  prices: Record<string, number>; // marketplace -> price
-  rating: number;
-  reviews: number;
-  priceChange: number;
-  category: string;
+  currentPrice?: number;
+  imageUrl?: string;
+  url?: string;
+  category?: string;
+  rating?: number;
+  vendor?: string;
+  description?: string;
+};
+
+// Add this type near the top of the file with other type definitions
+type APIError = {
+    message: string;
+    status?: number;
 };
 
 // Export the component to fix React Fast Refresh
-export const ProductCard = ({ product }: { product: Product }) => {
+export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Fixed type predicate syntax
-  const lowestPrice = Math.min(
-    ...Object.values(product.prices).filter((p): p is number => typeof p === "number")
-  );
+  const handleAddToWatchlist = async () => {
+    if (!product.name) return;
 
-  // Fixed type predicate syntax for priceEntries
-  const priceEntries = Object.entries(product.prices).filter(
-    (entry): entry is [string, number] => typeof entry[1] === "number"
-  );
+    try {
+      await productsAPI.createProduct({
+        name: product.name,
+        image: product.imageUrl || '',
+        prices: {
+          daraz: product.currentPrice || 0
+        },
+        category: product.category || 'General'
+      });
+
+      setIsWishlisted(true);
+      toast.success("Product added to watchlist!");
+    } catch (error) {
+      toast.error("Failed to add product to watchlist");
+      console.error(error);
+    }
+  };
 
   const marketplaceColors: Record<string, string> = {
-    amazon: "#fb923c",
-    ebay: "#3b82f6",
-    aliexpress: "#ef4444",
+    daraz: "#22d3ee",
   };
 
   // Make sure to return JSX
@@ -56,7 +73,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
     >
       <div className="relative mb-4 overflow-hidden rounded-lg">
         <img
-          src={product.image}
+          src={product.imageUrl || "https://via.placeholder.com/400x300?text=No+Image"}
           alt={product.name}
           className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
         />
@@ -69,23 +86,8 @@ export const ProductCard = ({ product }: { product: Product }) => {
             color: "#22d3ee",
           }}
         >
-          {product.category}
+          {product.category || 'General'}
         </Badge>
-        <div
-          className={`absolute bottom-2 right-2 px-2 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 ${
-            product.priceChange < 0 ? "text-green-400" : "text-red-400"
-          }`}
-          style={{
-            background:
-              product.priceChange < 0
-                ? "rgba(34, 197, 94, 0.2)"
-                : "rgba(239, 68, 68, 0.2)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <TrendingDown className="h-3 w-3" />
-          <span>{Math.abs(product.priceChange)}%</span>
-        </div>
       </div>
 
       <div className="space-y-4">
@@ -93,77 +95,97 @@ export const ProductCard = ({ product }: { product: Product }) => {
           {product.name}
         </h3>
 
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-            ${lowestPrice.toFixed(2)}
-          </span>
-        </div>
+        {product.currentPrice && (
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
+              Rs. {product.currentPrice.toLocaleString()}
+            </span>
+          </div>
+        )}
 
-        <div className="space-y-2">
-          {priceEntries.map(([marketplace, price]) => (
-            <div
-              key={marketplace}
-              className="flex items-center justify-between text-sm"
-            >
+        {product.vendor && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
               <div className="flex items-center space-x-2">
                 <div
                   className="w-3 h-3 rounded-full"
-                  style={{ background: marketplaceColors[marketplace] }}
+                  style={{ background: marketplaceColors[product.vendor] || "#22d3ee" }}
                 />
-                <span className="capitalize text-slate-300">{marketplace}</span>
+                <span className="capitalize text-slate-300">{product.vendor}</span>
               </div>
-              <span className="font-medium text-white">
-                ${price.toFixed(2)}
-              </span>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        {product.rating && (
+          <div className="text-sm text-slate-400">
+            Rating: ⭐ {product.rating}/5
+          </div>
+        )}
 
         <Button
           className="w-full font-medium"
+          onClick={handleAddToWatchlist}
+          disabled={isWishlisted}
           style={{
-            background: "linear-gradient(135deg, #22d3ee, #22c55e)",
+            background: isWishlisted
+              ? "#22c55e"
+              : "linear-gradient(135deg, #22d3ee, #22c55e)",
             border: "none",
           }}
         >
-          Add to Watchlist
+          {isWishlisted ? "Added to Watchlist" : "Add to Watchlist"}
         </Button>
       </div>
     </div>
   );
 };
 
-// Mock data for demonstration
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Wireless Headphones",
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e",
-    prices: { amazon: 129.99, ebay: 119.99, aliexpress: 89.99 },
-    rating: 4.5,
-    reviews: 234,
-    priceChange: -12,
-    category: "Electronics"
-  },
-  // Add more mock products as needed
-];
+
 
 // Export the SearchDashboard component
 export const SearchDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [scrapedProduct, setScrapedProduct] = useState<ScrapedProduct | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+    setError("");
+    setScrapedProduct(null);
+
+    try {
+        const products = await productsAPI.searchDarazProducts(searchQuery);
+        setScrapedProduct(products[0]); // Or handle multiple products as needed
+    } catch (err: unknown) {
+        const error = err as Error;
+        setError(error.message || "Failed to search for product");
+        toast.error("Failed to search for product");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white">PriceTrackr</h1>
+          <h1 className="text-3xl font-bold text-white">Daraz Product Search</h1>
           <div className="flex items-center space-x-4">
             <Button variant="outline" className="text-white border-cyan-400 hover:bg-cyan-400/10">
               <Zap className="w-4 h-4 mr-2" />
-              Tracked Items
+              View Watchlist
             </Button>
           </div>
         </div>
@@ -173,51 +195,61 @@ export const SearchDashboard = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
-              placeholder="Search for products..."
+              placeholder="Search for products on Daraz (e.g., iPhone 14 Pro Max)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
               className="pl-10 pr-4 py-6 text-lg border-gray-600 bg-gray-800 text-white placeholder-gray-400"
             />
           </div>
-          
-          <div className="flex gap-4">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-32 bg-gray-800 border-gray-600 text-white">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="electronics">Electronics</SelectItem>
-                <SelectItem value="fashion">Fashion</SelectItem>
-                <SelectItem value="home">Home</SelectItem>
-              </SelectContent>
-            </Select>
 
-            <Button
-              variant="outline"
-              size="icon"
-              className="border-gray-600 hover:bg-gray-700"
-              onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-            >
-              {viewMode === "grid" ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
-            </Button>
+          <Button
+            onClick={handleSearch}
+            disabled={loading || !searchQuery.trim()}
+            style={{
+              background: "linear-gradient(135deg, #22d3ee, #22c55e)",
+              border: "none",
+              minWidth: "120px"
+            }}
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Search className="w-5 h-5 mr-2" />}
+            {loading ? 'Searching...' : 'Search'}
+          </Button>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-cyan-400" />
+            <p className="text-gray-300">Searching for products...</p>
           </div>
-        </div>
+        )}
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {mockProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <div className="text-red-400 mb-4">❌ {error}</div>
+            <p className="text-gray-400">Try searching with different keywords or check your internet connection.</p>
+          </div>
+        )}
 
-        {mockProducts.length === 0 && (
+        {/* Product Result */}
+        {scrapedProduct && !loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <ProductCard product={scrapedProduct} />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!scrapedProduct && !loading && !error && searchQuery && (
           <div className="text-center py-12 text-gray-400">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No products found. Try a different search.</p>
+            <p>Enter a product name and click search to find products on Daraz.</p>
           </div>
         )}
       </div>
     </div>
   );
 };
+
+export default SearchDashboard;

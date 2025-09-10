@@ -1,0 +1,7 @@
+# CSS selectors for product category elements:
+category_main_contents: "div[data-qa-locator='product-item']"
+category_product_names: "div.title--wFj93"
+category_product_links: "div.mainPic--ehOdr a"
+category_product_image: "div.mainPic--ehOdr a img.image--WOyuZ"
+category_discount_price: "div.price--NVB62 span.currency--GVKjl"
+# ... rest of your selectors

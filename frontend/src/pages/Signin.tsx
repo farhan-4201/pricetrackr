@@ -2,20 +2,25 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, LogIn } from "lucide-react";
 
 export default function SignIn() {
-  const { signin, error, clearError, loading } = useAuth();
-  const [email, setEmail] = useState("");
+  const { signin, error, clearError, loading, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    await signin(email, password);
+    const result = await signin(emailAddress, password);
+    if (result.success) {
+      navigate("/", { replace: true });
+    }
   };
 
   return (
@@ -46,10 +51,10 @@ export default function SignIn() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="email"
-            placeholder="Email"
-            value={email}
+            placeholder="Email Address"
+            value={emailAddress}
             required
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmailAddress(e.target.value)}
             className="bg-slate-900/60 border-slate-700 text-white"
           />
           <Input
@@ -62,7 +67,13 @@ export default function SignIn() {
           />
 
           {error && (
-            <p className="text-red-400 text-sm font-medium">{error}</p>
+            <div className="text-red-400 text-sm font-medium">
+              {Array.isArray(error) ? (
+                error.map((err, index) => <p key={index}>{err}</p>)
+              ) : (
+                <p>{error}</p>
+              )}
+            </div>
           )}
 
           <Button

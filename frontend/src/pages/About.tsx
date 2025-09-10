@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -12,6 +13,11 @@ import {
 } from "lucide-react";
 
 export const About = () => {
+  const navigate = useNavigate();
+
+  const navigateToSearch = () => {
+    navigate("/#search");
+  };
   const stats = [
     { value: "500K+", label: "Happy Users", icon: Users, color: "#22d3ee" },
     { value: "$50M+", label: "Money Saved", icon: TrendingUp, color: "#22c55e" },
@@ -96,12 +102,12 @@ export const About = () => {
             </h1>
 
             <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed mb-8">
-              Founded in 2020, PriceTracker was born from a simple frustration: why is it so hard 
-              to know if you're getting a good deal? We set out to democratize smart shopping with 
-              AI-powered price intelligence.
+              PriceTracker is a final-year degree project designed to solve complex computing problems for consumers and business vendors.
+              Our goal is to simplify price tracking and make it accessible to everyone.
             </p>
 
-            <Button 
+            <Button
+              onClick={navigateToSearch}
               size="lg"
               className="px-12 py-4 text-lg font-medium transition-all duration-300 hover:scale-105"
               style={{
@@ -120,43 +126,6 @@ export const About = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div 
-                key={index}
-                className="text-center p-8 rounded-xl border transition-all duration-500 hover:scale-105"
-                style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(34, 211, 238, 0.1)",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)"
-                }}
-              >
-                <div 
-                  className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4"
-                  style={{
-                    background: `${stat.color}20`,
-                    boxShadow: `0 0 30px ${stat.color}30`
-                  }}
-                >
-                  <stat.icon className="h-8 w-8" style={{ color: stat.color }} />
-                </div>
-                <div 
-                  className="text-4xl font-bold mb-2"
-                  style={{ color: stat.color }}
-                >
-                  {stat.value}
-                </div>
-                <div className="text-slate-300 font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Mission Section */}
       {/* ... your mission section code unchanged ... */}
@@ -191,7 +160,8 @@ export const About = () => {
                 </p>
               </div>
 
-              <Button 
+              <Button
+                onClick={navigateToSearch}
                 size="lg"
                 className="px-12 py-4 text-lg font-medium transition-all duration-300 hover:scale-105"
                 style={{
