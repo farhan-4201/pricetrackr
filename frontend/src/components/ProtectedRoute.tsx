@@ -1,7 +1,7 @@
 import { useAuth } from "../context/AuthContext";
 
 export const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAuthenticated } = useAuth();
 
   // Show loading spinner while checking authentication
   if (loading) {

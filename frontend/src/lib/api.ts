@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import axios from 'axios';
 
 interface Product {
   id: string;
@@ -22,8 +23,33 @@ interface CreateProductInput {
     amazon?: number;
     ebay?: number;
     aliexpress?: number;
+    daraz?: number;
   };
   category: string;
+}
+
+interface UpdateProductInput {
+  name?: string;
+  image?: string;
+  prices?: {
+    amazon?: number;
+    ebay?: number;
+    aliexpress?: number;
+  };
+  category?: string;
+}
+
+interface AlertData {
+  threshold: number;
+  condition: 'above' | 'below';
+  email?: boolean;
+  sms?: boolean;
+}
+
+interface NotificationData {
+  title: string;
+  message: string;
+  type: 'price_alert' | 'system' | 'info';
 }
 
 interface RequestConfig {
@@ -53,7 +79,7 @@ class ApiClient {
     this.baseURL = `${this.config.baseURL}/api/${this.config.version}`;
   }
 
-  private async request<T>(
+  protected async request<T>(
     endpoint: string,
     options: RequestInit = {},
     config: RequestConfig = {}
@@ -78,16 +104,23 @@ class ApiClient {
     let lastError: Error;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
+      let controller: AbortController | null = null;
+      let timeoutId: NodeJS.Timeout | null = null;
+
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        controller = new AbortController();
+        timeoutId = setTimeout(() => {
+          controller!.abort("Request timeout");
+        }, timeout);
 
         const response = await fetch(url, {
           ...requestOptions,
           signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -97,11 +130,19 @@ class ApiClient {
         const data = await response.json();
         return data;
       } catch (error) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         lastError = error as Error;
 
-        // Don't retry on client errors (4xx) or if it's the last attempt
+        // Don't retry on client errors (4xx), timeout, or if it's the last attempt
         if (attempt === retries ||
-            (error instanceof Error && error.message.includes('HTTP 4'))) {
+            (error instanceof Error && (
+              error.message.includes('HTTP 4') ||
+              error.message.includes('Request timeout') ||
+              error.name === 'AbortError'
+            ))) {
           break;
         }
 
@@ -168,7 +209,37 @@ class ApiClient {
   }
 }
 
-// Create singleton instance
+class AuthenticatedApiClient extends ApiClient {
+  private getAuthToken(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  protected async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    config: RequestConfig = {}
+  ): Promise<T> {
+    const token = this.getAuthToken();
+
+    const authenticatedHeaders: Record<string, string> = {
+      ...config.headers,
+    };
+
+    if (token) {
+      authenticatedHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    const authenticatedConfig = {
+      ...config,
+      headers: authenticatedHeaders,
+    };
+
+    // Call the parent class request method with authenticated headers
+    return super.request<T>(endpoint, options, authenticatedConfig);
+  }
+}
+
+// Create singleton instances
 export const apiClient = new ApiClient();
 export const authenticatedApiClient = new AuthenticatedApiClient();
 
@@ -177,11 +248,12 @@ export default apiClient;
 // Types
 interface User {
   _id: string;
-  email: string;
-  name: string;
+  emailAddress: string;
+  fullName: string;
   createdAt: string;
-  lastLogin: string;
+  lastLogin: string | null;
   isActive: boolean;
+  profilePicture: string | null;
 }
 
 interface LoginResponse {
@@ -191,14 +263,15 @@ interface LoginResponse {
 }
 
 interface RegisterData {
-  email: string;
+  emailAddress: string;
   password: string;
   confirmPassword: string;
-  name: string;
+  fullName: string;
+  contactNumber: string;
 }
 
 interface LoginData {
-  email: string;
+  emailAddress: string;
   password: string;
 }
 
@@ -236,14 +309,123 @@ export const authAPI = {
 };
 
 // Products API functions
+interface ScrapedProduct {
+    name: string;
+    price: number | null;
+    url: string;
+    imageUrl: string | null;
+    marketplace: string;
+}
+
 export const productsAPI = {
-  // Get all products
+  // Get all products for current user
   getProducts: async () => {
-    return apiClient.get('/products');
+    return authenticatedApiClient.get('/products');
   },
 
   // Create a new product
-  createProduct: async (productData: CreateProductInput): Promise<Product> => {
-    return apiClient.post<Product>('/products', productData);
+  createProduct: async (productData: CreateProductInput) => {
+    return authenticatedApiClient.post('/products', productData);
+  },
+
+  // Update product price
+  updatePrice: async (productId: string, price: number) => {
+    return authenticatedApiClient.put(`/products/${productId}/price`, { price });
+  },
+
+  // Update product details
+  updateProduct: async (productId: string, updates: UpdateProductInput) => {
+    return authenticatedApiClient.put(`/products/${productId}`, updates);
+  },
+
+  // Delete product
+  deleteProduct: async (productId: string) => {
+    return authenticatedApiClient.delete(`/products/${productId}`);
+  },
+
+  // Search products
+  searchProducts: async (query: string) => {
+    return authenticatedApiClient.get(`/products/search?query=${encodeURIComponent(query)}`);
+  },
+
+  // Get product history
+  getProductHistory: async (productId: string) => {
+    return authenticatedApiClient.get(`/products/${productId}/history`);
+  },
+
+  // Get product statistics
+  getStats: async () => {
+    return authenticatedApiClient.get('/products/stats/overview');
+  },
+
+  // Create alert for product
+  createAlert: async (productId: string, alertData: AlertData) => {
+    return authenticatedApiClient.post(`/products/${productId}/alerts`, alertData);
+  },
+
+  // Update alert
+  updateAlert: async (productId: string, alertId: string, updates: Partial<AlertData>) => {
+    return authenticatedApiClient.put(`/products/${productId}/alerts/${alertId}`, updates);
+  },
+
+  // Scrape product from Daraz
+  scrapeProduct: async (product_name: string) => {
+    return apiClient.post('/products/scrape/daraz', { query: product_name });
+  },
+
+  // Updated scrape endpoint for Daraz
+  searchDarazProducts: async (query: string): Promise<ScrapedProduct[]> => {
+    try {
+        const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape/daraz', {
+            query
+        });
+
+        if (!response || !response.products) {
+            throw new Error('Invalid response format');
+        }
+
+        return response.products || [];
+    } catch (error) {
+        console.error('API Error:', error);
+        throw new Error('Failed to fetch products from Daraz');
+    }
+},
+};
+
+// Notifications API functions
+export const notificationsAPI = {
+  // Get notifications
+  getNotifications: async (params: { isRead?: boolean; limit?: number } = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.isRead !== undefined) queryParams.set('isRead', params.isRead.toString());
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+
+    const queryString = queryParams.toString();
+    return authenticatedApiClient.get(`/notifications${queryString ? '?' + queryString : ''}`);
+  },
+
+  // Mark notification as read
+  markAsRead: async (notificationId: string) => {
+    return authenticatedApiClient.put(`/notifications/${notificationId}/read`);
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async () => {
+    return authenticatedApiClient.put('/notifications/mark-all-read');
+  },
+
+  // Delete notification
+  deleteNotification: async (notificationId: string) => {
+    return authenticatedApiClient.delete(`/notifications/${notificationId}`);
+  },
+
+  // Get notification count
+  getCount: async () => {
+    return authenticatedApiClient.get('/notifications/count');
+  },
+
+  // Create notification
+  createNotification: async (data: NotificationData) => {
+    return authenticatedApiClient.post('/notifications', data);
   },
 };

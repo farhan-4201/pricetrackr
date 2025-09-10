@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -9,14 +10,34 @@ import { Loader2, UserPlus } from "lucide-react";
 
 export default function SignUp() {
   const { signup, error, clearError, loading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [contactError, setContactError] = useState("");
+
+  const validateContactNumber = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed.length < 10 || trimmed.length > 15) {
+      return "Contact number must be between 10 and 15 characters";
+    }
+    if (!/^[+]?[\d\s\-().]+$/.test(trimmed)) {
+      return "Contact number can only contain numbers, spaces, hyphens, parentheses, dots, and optional + prefix";
+    }
+    return "";
+  };
+
+  const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setContactNumber(value);
+    const error = validateContactNumber(value);
+    setContactError(error);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    await signup(email, password, name);
+    await signup(emailAddress, password, fullName, contactNumber);
   };
 
   return (
@@ -49,18 +70,36 @@ export default function SignUp() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="text"
-            placeholder="Name"
-            value={name}
+            placeholder="Full Name"
+            value={fullName}
             required
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setFullName(e.target.value)}
             className="bg-slate-900/60 border-slate-700 text-white"
           />
+          <div>
+            <Input
+              type="tel"
+              placeholder="Contact Number (10-15 characters)"
+              value={contactNumber}
+              required
+              onChange={handleContactNumberChange}
+              className={`bg-slate-900/60 border-slate-700 text-white ${
+                contactError ? 'border-red-500' : contactNumber && !contactError ? 'border-green-500' : ''
+              }`}
+            />
+            {contactError && (
+              <p className="text-red-400 text-xs mt-1">{contactError}</p>
+            )}
+            {contactNumber && !contactError && (
+              <p className="text-green-400 text-xs mt-1">✓ Valid contact number</p>
+            )}
+          </div>
           <Input
             type="email"
-            placeholder="Email"
-            value={email}
+            placeholder="Email Address"
+            value={emailAddress}
             required
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmailAddress(e.target.value)}
             className="bg-slate-900/60 border-slate-700 text-white"
           />
           <Input
@@ -73,7 +112,13 @@ export default function SignUp() {
           />
 
           {error && (
-            <p className="text-red-400 text-sm font-medium">{error}</p>
+            <div className="text-red-400 text-sm font-medium">
+              {Array.isArray(error) ? (
+                error.map((err, index) => <p key={index}>{err}</p>)
+              ) : (
+                <p>{error}</p>
+              )}
+            </div>
           )}
 
           <Button
