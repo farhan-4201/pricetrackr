@@ -65,7 +65,7 @@ export const Index = () => {
     setScrapedProduct(null);
 
     try {
-      const data = await apiClient.post('/products/scrape', { product_name: searchTerm });
+      const data = await apiClient.post('/products/scrape', { query: searchTerm });
       setScrapedProduct(data);
 
       // Increment search count for non-authenticated users

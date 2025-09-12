@@ -199,17 +199,92 @@ router.post('/scrape/daraz', async (req, res) => {
         }
 
         console.log('Received scrape request for query:', query); // Debug log
-        
+
         const scraperController = require('../controllers/scraper.controller');
         const results = await scraperController.scrapeDaraz(query);
-        
+
         if (!results || !results.products) {
             throw new Error('Invalid scraper response format');
         }
-        
+
         res.json(results);
     } catch (error) {
         console.error('Scraping error:', error);
+        res.status(500).json({ error: error.message || 'Failed to scrape products' });
+    }
+});
+
+// Scrape product from Alibaba
+router.post('/scrape/alibaba', async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query) {
+            return res.status(400).json({ error: 'Search query is required' });
+        }
+
+        console.log('Received scrape request for Alibaba query:', query); // Debug log
+
+        const scraperController = require('../controllers/scraper.controller');
+        const results = await scraperController.scrapeAlibaba(query);
+
+        if (!results || !results.products) {
+            throw new Error('Invalid scraper response format');
+        }
+
+        res.json(results);
+    } catch (error) {
+        console.error('Scraping error:', error);
+        res.status(500).json({ error: error.message || 'Failed to scrape products' });
+    }
+});
+
+// General scrape endpoint that combines both sources
+router.post('/scrape', async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query) {
+            return res.status(400).json({ error: 'Search query is required' });
+        }
+
+        console.log('Received scrape request for both sources:', query);
+
+        const scraperController = require('../controllers/scraper.controller');
+        const SearchResult = require('../models/search_result');
+
+        // Scrape both concurrently
+        const [darazResults, alibabaResults] = await Promise.allSettled([
+            scraperController.scrapeDaraz(query),
+            scraperController.scrapeAlibaba(query)
+        ]);
+
+        const allProducts = [];
+
+        if (darazResults.status === 'fulfilled') {
+            allProducts.push(...darazResults.value.products);
+        } else {
+            console.error('Daraz scrape failed:', darazResults.reason);
+        }
+
+        if (alibabaResults.status === 'fulfilled') {
+            allProducts.push(...alibabaResults.value.products);
+        } else {
+            console.error('Alibaba scrape failed:', alibabaResults.reason);
+        }
+
+        // Store results in DB
+        if (allProducts.length > 0) {
+            const searchResult = new SearchResult({
+                query,
+                results: allProducts,
+                searchedAt: new Date(),
+                resultCount: allProducts.length
+            });
+            await searchResult.save();
+        }
+
+        res.json({ products: allProducts });
+    } catch (error) {
+        console.error('Combined scraping error:', error);
         res.status(500).json({ error: error.message || 'Failed to scrape products' });
     }
 });

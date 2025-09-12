@@ -7,17 +7,7 @@ import { Search, Filter, Grid, List, Zap, TrendingDown, Loader2 } from "lucide-r
 import { productsAPI } from "@/lib/api";
 import { toast } from "sonner";
 
-// ---- Define product type ----
-type ScrapedProduct = {
-  name: string;
-  currentPrice?: number;
-  imageUrl?: string;
-  url?: string;
-  category?: string;
-  rating?: number;
-  vendor?: string;
-  description?: string;
-};
+import { ScrapedProduct } from "@/lib/api";
 
 // Add this type near the top of the file with other type definitions
 type APIError = {
@@ -34,13 +24,19 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
     if (!product.name) return;
 
     try {
+      const priceField: Record<string, number> = {};
+      if (typeof product.price === 'number' && product.marketplace) {
+        priceField[product.marketplace.toLowerCase()] = product.price;
+      }
+
       await productsAPI.createProduct({
         name: product.name,
         image: product.imageUrl || '',
-        prices: {
-          daraz: product.currentPrice || 0
-        },
-        category: product.category || 'General'
+        prices: priceField,
+        category: product.category || 'General',
+        vendor: product.marketplace.toLowerCase(),
+        url: product.url,
+        currentPrice: typeof product.price === 'number' ? product.price : 0
       });
 
       setIsWishlisted(true);
@@ -53,6 +49,9 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
 
   const marketplaceColors: Record<string, string> = {
     daraz: "#22d3ee",
+    alibaba: "#ff4081",
+    amazon: "#ff9900",
+    ebay: "#26a69a"
   };
 
   // Make sure to return JSX
@@ -86,7 +85,7 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
             color: "#22d3ee",
           }}
         >
-          {product.category || 'General'}
+          {product.marketplace}
         </Badge>
       </div>
 
@@ -95,31 +94,39 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
           {product.name}
         </h3>
 
-        {product.currentPrice && (
+        {typeof product.price === 'number' && product.price > 0 ? (
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-              Rs. {product.currentPrice.toLocaleString()}
+              Rs. {product.price.toLocaleString()}
             </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-400">Price not available</span>
           </div>
         )}
 
-        {product.vendor && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ background: marketplaceColors[product.vendor] || "#22d3ee" }}
-                />
-                <span className="capitalize text-slate-300">{product.vendor}</span>
-              </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ background: marketplaceColors[product.marketplace.toLowerCase()] || "#22d3ee" }}
+              />
+              <span className="capitalize text-slate-300">{product.marketplace}</span>
             </div>
           </div>
-        )}
+        </div>
 
         {product.rating && (
           <div className="text-sm text-slate-400">
             Rating: ⭐ {product.rating}/5
+          </div>
+        )}
+
+        {product.company && (
+          <div className="text-sm text-slate-400">
+            By: {product.company}
           </div>
         )}
 
@@ -146,7 +153,7 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
 // Export the SearchDashboard component
 export const SearchDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [scrapedProduct, setScrapedProduct] = useState<ScrapedProduct | null>(null);
+  const [scrapedProducts, setScrapedProducts] = useState<ScrapedProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -156,11 +163,11 @@ export const SearchDashboard = () => {
 
     setLoading(true);
     setError("");
-    setScrapedProduct(null);
+    setScrapedProducts([]);
 
     try {
-        const products = await productsAPI.searchDarazProducts(searchQuery);
-        setScrapedProduct(products[0]); // Or handle multiple products as needed
+        const products = await productsAPI.searchAllMarketsProducts(searchQuery);
+        setScrapedProducts(products);
     } catch (err: unknown) {
         const error = err as Error;
         setError(error.message || "Failed to search for product");
@@ -181,7 +188,7 @@ export const SearchDashboard = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white">Daraz Product Search</h1>
+          <h1 className="text-3xl font-bold text-white">Multi-Marketplace Product Search</h1>
           <div className="flex items-center space-x-4">
             <Button variant="outline" className="text-white border-cyan-400 hover:bg-cyan-400/10">
               <Zap className="w-4 h-4 mr-2" />
@@ -195,7 +202,7 @@ export const SearchDashboard = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
-              placeholder="Search for products on Daraz (e.g., iPhone 14 Pro Max)"
+              placeholder="Search for products across Daraz, Alibaba, and more (e.g., iPhone 14 Pro Max)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -234,17 +241,19 @@ export const SearchDashboard = () => {
         )}
 
         {/* Product Result */}
-        {scrapedProduct && !loading && (
+        {scrapedProducts.length > 0 && !loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <ProductCard product={scrapedProduct} />
+            {scrapedProducts.map((product, index) => (
+              <ProductCard key={index} product={product} />
+            ))}
           </div>
         )}
 
         {/* Empty State */}
-        {!scrapedProduct && !loading && !error && searchQuery && (
+        {scrapedProducts.length === 0 && !loading && !error && searchQuery && (
           <div className="text-center py-12 text-gray-400">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Enter a product name and click search to find products on Daraz.</p>
+            <p>Enter a product name and click search to find products from all marketplaces.</p>
           </div>
         )}
       </div>

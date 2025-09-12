@@ -24,8 +24,12 @@ interface CreateProductInput {
     ebay?: number;
     aliexpress?: number;
     daraz?: number;
+    alibaba?: number;
   };
   category: string;
+  vendor?: string;
+  url?: string;
+  currentPrice?: number;
 }
 
 interface UpdateProductInput {
@@ -308,13 +312,15 @@ export const authAPI = {
   },
 };
 
-// Products API functions
-interface ScrapedProduct {
+export interface ScrapedProduct {
     name: string;
     price: number | null;
     url: string;
     imageUrl: string | null;
     marketplace: string;
+    category?: string;
+    rating?: string | number;
+    company?: string;
 }
 
 export const productsAPI = {
@@ -373,7 +379,7 @@ export const productsAPI = {
     return apiClient.post('/products/scrape/daraz', { query: product_name });
   },
 
-  // Updated scrape endpoint for Daraz
+// Updated scrape endpoint for Daraz
   searchDarazProducts: async (query: string): Promise<ScrapedProduct[]> => {
     try {
         const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape/daraz', {
@@ -388,6 +394,24 @@ export const productsAPI = {
     } catch (error) {
         console.error('API Error:', error);
         throw new Error('Failed to fetch products from Daraz');
+    }
+},
+
+// Search with both scrapers
+searchAllMarketsProducts: async (query: string): Promise<ScrapedProduct[]> => {
+    try {
+        const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape', {
+            query: query
+        });
+        
+        if (!response || !response.products) {
+            throw new Error('Invalid response format');
+        }
+        
+        return response.products || [];
+    } catch (error) {
+        console.error('API Error:', error);
+        throw new Error('Failed to fetch products from marketplaces');
     }
 },
 };
