@@ -33,10 +33,10 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
         name: product.name,
         image: product.imageUrl || '',
         prices: priceField,
-        category: product.category || 'General',
+        category: 'General',
         vendor: product.marketplace.toLowerCase(),
         url: product.url,
-        currentPrice: typeof product.price === 'number' ? product.price : 0
+        currentPrice: typeof product.price === 'number' && product.price > 0 ? product.price : 0
       });
 
       setIsWishlisted(true);
@@ -94,15 +94,17 @@ export const ProductCard = ({ product }: { product: ScrapedProduct }) => {
           {product.name}
         </h3>
 
-        {typeof product.price === 'number' && product.price > 0 ? (
+        {product.price !== null && product.price !== undefined && product.price > 0 ? (
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-              Rs. {product.price.toLocaleString()}
+              Rs. {typeof product.price === 'number' ? product.price.toLocaleString() : product.price}
             </span>
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-400">Price not available</span>
+            <span className="text-sm text-slate-400">
+              {product.price === null || product.price === undefined ? 'Price not available' : `Rs. ${product.price}`}
+            </span>
           </div>
         )}
 

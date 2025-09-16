@@ -1,472 +1,15 @@
-import { Builder, By, until } from 'selenium-webdriver';
-import chrome from 'selenium-webdriver/chrome.js';
-const { Options } = chrome;
-import mongoose from 'mongoose';
-import readline from 'readline';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { promises as fs } from 'fs';
-import winston from 'winston';
+import readline from 'readline';
+import { MongoClient } from 'mongodb';
+import dotenv from 'dotenv';
 
-// Configure logging
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-    ),
-    transports: [
-        new winston.transports.File({ filename: 'scraper_errors.log', level: 'error' }),
-        new winston.transports.File({ filename: 'scraper.log' }),
-        new winston.transports.Console({
-            format: winston.format.simple()
-        })
-    ]
-});
+puppeteer.use(StealthPlugin());
 
-// MongoDB Schema
-const ProductSchema = new mongoose.Schema({
-    searchQuery: { type: String, required: true, index: true },
-    productName: { type: String, required: true },
-    price: { type: String, required: true },
-    company: { type: String, default: 'N/A' },
-    moq: { type: String, default: 'N/A' },
-    rating: { type: String, default: 'N/A' },
-    imageUrl: { type: String, default: 'N/A' },
-    productUrl: { type: String, required: true },
-    source: { type: String, required: true },
-    scrapedAt: { type: Date, default: Date.now },
-    responseTime: { type: Number }, // in milliseconds
-    pageQualityScore: { type: Number, default: 0 }
-}, {
-    timestamps: true
-});
+// Load environment variables
+dotenv.config();
 
-// Add indexes for better query performance
-ProductSchema.index({ searchQuery: 1, scrapedAt: -1 });
-ProductSchema.index({ source: 1, scrapedAt: -1 });
-
-const Product = mongoose.model('Product', ProductSchema);
-
-class AdvancedProductScraper {
-    constructor() {
-        this.TIMEOUT_LIMIT = 7000; // 7 seconds strict limit
-        this.RETRY_ATTEMPTS = 2;
-        this.MIN_PRODUCTS = 3;
-        this.MAX_PRODUCTS = 15;
-        this.QUALITY_THRESHOLD = 0.7;
-        
-        this.SUPPORTED_SITES = {
-            alibaba: {
-                baseUrl: 'https://www.alibaba.com/trade/search',
-                selectors: {
-                    productContainer: '.fy23-search-card',
-                    fallbackContainer: '.organic-offer-wrapper',
-                    title: '.search-card-e-title a span',
-                    price: '.search-card-e-price-main',
-                    company: '.search-card-e-company',
-                    rating: '.search-card-e-review strong',
-                    image: 'a.search-card-e-slider__link img.search-card-e-slider__img',
-                    link: '.search-card-e-title a',
-                    moq: '.search-card-m-sale-features__item'
-                }
-            }
-        };
-        
-        this.rejectedPages = [];
-        this.performanceMetrics = {
-            totalScrapes: 0,
-            successfulScrapes: 0,
-            averageResponseTime: 0,
-            cacheHits: 0
-        };
-    }
-
-    async connectToMongoDB(uri = 'mongodb://localhost:27017/scraping_db') {
-        try {
-            await mongoose.connect(uri, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
-            });
-            logger.info('Connected to MongoDB successfully');
-            return true;
-        } catch (error) {
-            logger.error('MongoDB connection failed:', error);
-            return false;
-        }
-    }
-
-    async createOptimizedDriver() {
-        const options = new Options();
-        
-        // Performance optimizations
-        options.addArguments(
-            '--headless=new',
-            '--no-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
-            '--disable-extensions',
-            '--disable-plugins',
-            '--disable-images', // Skip images for faster loading
-            '--disable-javascript', // Disable JS if not needed
-            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            '--window-size=1920,1080',
-            '--memory-pressure-off',
-            '--max_old_space_size=4096'
-        );
-
-        // Additional performance settings
-        options.setUserPreferences({
-            'profile.default_content_setting_values.notifications': 2,
-            'profile.default_content_settings.popups': 0,
-            'profile.managed_default_content_settings.images': 2
-        });
-
-        const driver = await new Builder()
-            .forBrowser('chrome')
-            .setChromeOptions(options)
-            .build();
-
-        // Set aggressive timeouts
-        await driver.manage().setTimeouts({
-            implicit: 2000,
-            pageLoad: this.TIMEOUT_LIMIT - 1000,
-            script: 3000
-        });
-
-        return driver;
-    }
-
-    async validatePageQuality(driver, products) {
-        let qualityScore = 0;
-        const startTime = Date.now();
-
-        try {
-            // Check if page loaded completely
-            const loadTime = Date.now() - startTime;
-            if (loadTime > this.TIMEOUT_LIMIT) {
-                logger.warn(`Page load exceeded timeout: ${loadTime}ms`);
-                return 0;
-            }
-
-            // Product count check
-            const productCount = products.length;
-            if (productCount < this.MIN_PRODUCTS) {
-                logger.warn(`Insufficient products found: ${productCount}`);
-                return 0.2;
-            }
-
-            // Data quality check
-            let validProducts = 0;
-            for (const product of products) {
-                if (this.isValidProduct(product)) {
-                    validProducts++;
-                }
-            }
-
-            const dataQuality = validProducts / productCount;
-            qualityScore = Math.min(1, (dataQuality * 0.6) + (productCount >= 5 ? 0.4 : 0.2));
-
-            // Check for anti-bot detection
-            const bodyText = await driver.findElement(By.tagName('body')).getText();
-            const suspiciousPatterns = ['captcha', 'robot', 'blocked', 'access denied'];
-            const hasSuspiciousContent = suspiciousPatterns.some(pattern => 
-                bodyText.toLowerCase().includes(pattern)
-            );
-
-            if (hasSuspiciousContent) {
-                logger.warn('Potential bot detection detected');
-                qualityScore *= 0.3;
-            }
-
-            logger.info(`Page quality score: ${qualityScore.toFixed(2)}`);
-            return qualityScore;
-
-        } catch (error) {
-            logger.error('Quality validation failed:', error);
-            return 0;
-        }
-    }
-
-    isValidProduct(product) {
-        const requiredFields = ['productName', 'price', 'productUrl'];
-        return requiredFields.every(field => 
-            product[field] && 
-            product[field] !== 'nil' && 
-            product[field].trim() !== '' &&
-            !product[field].includes('undefined')
-        ) && 
-        product.price.match(/[\d.,]+/) && // Has numeric price
-        product.productUrl.startsWith('http'); // Valid URL
-    }
-
-    async extractData(container, selector, attribute = null) {
-        try {
-            const element = await container.findElement(By.css(selector));
-            const data = attribute ? await element.getAttribute(attribute) : await element.getText();
-            return data?.trim() || 'nil';
-        } catch {
-            return 'nil';
-        }
-    }
-
-    async scrapeAlibaba(query, maxPrice = '', filters = []) {
-        let driver;
-        const startTime = Date.now();
-        const site = this.SUPPORTED_SITES.alibaba;
-
-        try {
-            driver = await this.createOptimizedDriver();
-            
-            // Build URL with parameters
-            const searchQuery = encodeURIComponent(query);
-            const priceParam = maxPrice ? `&pricet=${maxPrice}` : '';
-            const url = `${site.baseUrl}?fsb=y&mergeResult=true&ta=y&tab=all&searchText=${searchQuery}${priceParam}`;
-            
-            logger.info(`Scraping: ${url}`);
-            
-            // Navigate with timeout protection
-            const navigationPromise = driver.get(url);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Navigation timeout')), this.TIMEOUT_LIMIT - 1000)
-            );
-            
-            await Promise.race([navigationPromise, timeoutPromise]);
-
-            // Wait for products with timeout
-            const remainingTime = this.TIMEOUT_LIMIT - (Date.now() - startTime);
-            if (remainingTime < 1000) {
-                throw new Error('Insufficient time remaining for scraping');
-            }
-
-            await driver.wait(
-                until.elementsLocated(By.css(site.selectors.productContainer)),
-                Math.min(remainingTime, 3000)
-            );
-
-            // Extract products
-            const products = await this.extractAlibabaProducts(driver, query, site.selectors);
-            
-            // Validate page quality
-            const qualityScore = await this.validatePageQuality(driver, products);
-            if (qualityScore < this.QUALITY_THRESHOLD) {
-                this.rejectedPages.push({
-                    url,
-                    reason: 'Low quality score',
-                    score: qualityScore,
-                    productCount: products.length,
-                    timestamp: new Date()
-                });
-                throw new Error(`Page rejected: Quality score ${qualityScore} below threshold ${this.QUALITY_THRESHOLD}`);
-            }
-
-            const responseTime = Date.now() - startTime;
-            logger.info(`Scraping completed successfully in ${responseTime}ms with ${products.length} products`);
-
-            // Add metadata to products
-            products.forEach(product => {
-                product.responseTime = responseTime;
-                product.pageQualityScore = qualityScore;
-            });
-
-            return products;
-
-        } catch (error) {
-            const responseTime = Date.now() - startTime;
-            logger.error(`Scraping failed after ${responseTime}ms:`, error.message);
-            throw error;
-        } finally {
-            if (driver) {
-                try {
-                    await driver.quit();
-                } catch (quitError) {
-                    logger.error('Driver quit error:', quitError);
-                }
-            }
-        }
-    }
-
-    async extractAlibabaProducts(driver, searchQuery, selectors) {
-        const products = [];
-        
-        try {
-            const containers = await driver.findElements(By.css(selectors.productContainer));
-            logger.info(`Found ${containers.length} product containers`);
-
-            // Limit processing to avoid timeout
-            const maxContainers = Math.min(containers.length, this.MAX_PRODUCTS);
-            
-            for (let i = 0; i < maxContainers; i++) {
-                try {
-                    const container = containers[i];
-                    
-                    const product = {
-                        searchQuery: searchQuery,
-                        productName: await this.extractData(container, selectors.title),
-                        price: await this.extractData(container, selectors.price),
-                        company: await this.extractData(container, selectors.company),
-                        moq: await this.extractData(container, selectors.moq),
-                        rating: await this.extractData(container, selectors.rating),
-                        imageUrl: await this.extractData(container, selectors.image, 'src'),
-                        productUrl: await this.extractData(container, selectors.link, 'href'),
-                        source: 'alibaba'
-                    };
-
-                    // Clean and validate product data
-                    if (this.isValidProduct(product)) {
-                        // Clean URL if relative
-                        if (product.productUrl && !product.productUrl.startsWith('http')) {
-                            product.productUrl = 'https://www.alibaba.com' + product.productUrl;
-                        }
-                        
-                        products.push(product);
-                        logger.debug(`Extracted product: ${product.productName}`);
-                    } else {
-                        logger.debug(`Skipped invalid product at index ${i}`);
-                    }
-
-                } catch (error) {
-                    logger.warn(`Failed to extract product ${i}:`, error.message);
-                }
-            }
-
-        } catch (error) {
-            logger.error('Product extraction failed:', error);
-            throw error;
-        }
-
-        return products;
-    }
-
-    async scrapeWithRetry(query, maxPrice = '', filters = []) {
-        let lastError;
-        
-        for (let attempt = 1; attempt <= this.RETRY_ATTEMPTS; attempt++) {
-            try {
-                logger.info(`Scraping attempt ${attempt}/${this.RETRY_ATTEMPTS} for query: "${query}"`);
-                
-                const products = await this.scrapeAlibaba(query, maxPrice, filters);
-                
-                this.performanceMetrics.totalScrapes++;
-                this.performanceMetrics.successfulScrapes++;
-                
-                return products;
-                
-            } catch (error) {
-                lastError = error;
-                logger.warn(`Attempt ${attempt} failed: ${error.message}`);
-                
-                if (attempt < this.RETRY_ATTEMPTS) {
-                    const delay = Math.min(1000 * attempt, 3000);
-                    logger.info(`Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-        
-        this.performanceMetrics.totalScrapes++;
-        throw lastError || new Error('All retry attempts failed');
-    }
-
-    async saveToMongoDB(products) {
-        try {
-            if (!products || products.length === 0) {
-                logger.warn('No products to save to MongoDB');
-                return 0;
-            }
-
-            const result = await Product.insertMany(products, { 
-                ordered: false, // Continue on duplicate key errors
-                lean: true 
-            });
-            
-            logger.info(`Successfully saved ${result.length} products to MongoDB`);
-            return result.length;
-            
-        } catch (error) {
-            if (error.code === 11000) {
-                // Handle duplicate key errors
-                const savedCount = products.length - (error.writeErrors?.length || 0);
-                logger.info(`Saved ${savedCount} products (${error.writeErrors?.length || 0} duplicates skipped)`);
-                return savedCount;
-            }
-            
-            logger.error('MongoDB save failed:', error);
-            throw error;
-        }
-    }
-
-    async getCachedResults(query, maxAgeHours = 1) {
-        try {
-            const cutoff = new Date(Date.now() - (maxAgeHours * 60 * 60 * 1000));
-            const results = await Product.find({
-                searchQuery: new RegExp(query, 'i'),
-                scrapedAt: { $gte: cutoff }
-            })
-            .sort({ scrapedAt: -1, pageQualityScore: -1 })
-            .limit(this.MAX_PRODUCTS)
-            .lean();
-
-            if (results.length > 0) {
-                this.performanceMetrics.cacheHits++;
-                logger.info(`Found ${results.length} cached results for "${query}"`);
-            }
-
-            return results;
-        } catch (error) {
-            logger.error('Cache lookup failed:', error);
-            return [];
-        }
-    }
-
-    async exportResults(products, format = 'json') {
-        try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `scraped_products_${timestamp}`;
-
-            if (format === 'json') {
-                const filepath = `${filename}.json`;
-                await fs.writeFile(filepath, JSON.stringify(products, null, 2), 'utf-8');
-                logger.info(`Results exported to ${filepath}`);
-                return filepath;
-            }
-            
-            // Add CSV export if needed
-            
-        } catch (error) {
-            logger.error('Export failed:', error);
-            throw error;
-        }
-    }
-
-    getPerformanceReport() {
-        const { totalScrapes, successfulScrapes, cacheHits } = this.performanceMetrics;
-        const successRate = totalScrapes > 0 ? (successfulScrapes / totalScrapes * 100).toFixed(1) : 0;
-        
-        return {
-            totalScrapes,
-            successfulScrapes,
-            successRate: `${successRate}%`,
-            cacheHits,
-            rejectedPages: this.rejectedPages.length,
-            rejectedPageDetails: this.rejectedPages
-        };
-    }
-
-    async cleanup() {
-        try {
-            await mongoose.connection.close();
-            logger.info('Cleanup completed');
-        } catch (error) {
-            logger.error('Cleanup error:', error);
-        }
-    }
-}
-
-// CLI Interface
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -474,119 +17,643 @@ const rl = readline.createInterface({
 
 const question = (query) => new Promise((resolve) => rl.question(query, resolve));
 
-async function main() {
-    const scraper = new AdvancedProductScraper();
-    
+// Human-like delay functions
+const humanDelay = (min = 1000, max = 3000) => {
+    return new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min)));
+};
+
+const shortDelay = () => humanDelay(200, 800);
+const mediumDelay = () => humanDelay(1000, 3000);
+const longDelay = () => humanDelay(3000, 6000);
+
+// Rotating User Agents
+const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0'
+];
+
+const getRandomUserAgent = () => userAgents[Math.floor(Math.random() * userAgents.length)];
+
+// MongoDB connection
+let db = null;
+let client = null;
+
+const connectToDatabase = async () => {
     try {
-        // Connect to MongoDB
-        const mongoConnected = await scraper.connectToMongoDB();
-        if (!mongoConnected) {
-            console.log('Warning: MongoDB connection failed. Results will not be saved.');
+        const mongoUri = process.env.MONGODB_URI;
+        if (!mongoUri) {
+            throw new Error('MONGODB_URI not found in environment variables. Please check your .env file.');
         }
+        
+        console.log('🔗 Connecting to MongoDB...');
+        client = new MongoClient(mongoUri);
+        await client.connect();
+        
+        const dbName = mongoUri.split('/').pop().split('?')[0] || 'price_tracker';
+        db = client.db(dbName);
+        
+        console.log(`✅ Connected to MongoDB database: ${dbName}`);
+        return db;
+    } catch (error) {
+        console.error('❌ Failed to connect to MongoDB:', error.message);
+        throw error;
+    }
+};
 
-        console.log('\n🚀 Advanced Product Scraper v2.0');
-        console.log('⚡ Optimized for 5-7 second response times');
-        console.log('🔍 Intelligent page filtering and quality validation');
-        console.log('💾 MongoDB integration with caching\n');
+const closeDatabase = async () => {
+    if (client) {
+        await client.close();
+        console.log('🔐 MongoDB connection closed');
+    }
+};
 
-        while (true) {
-            try {
-                const query = await question('Enter product search query (or "exit" to quit): ');
-                if (query.toLowerCase() === 'exit') break;
+// Function to save products to MongoDB
+const saveToDatabase = async (products, searchQuery) => {
+    try {
+        const collection = db.collection('alibaba');
+        
+        const productsWithMetadata = products.map(product => ({
+            ...product,
+            searchQuery: searchQuery,
+            scrapedAt: new Date(),
+            source: 'alibaba.com'
+        }));
+        
+        const result = await collection.insertMany(productsWithMetadata);
+        console.log(`💾 Saved ${result.insertedCount} products to MongoDB collection 'alibaba'`);
+        
+        return result;
+    } catch (error) {
+        console.error('❌ Error saving to database:', error.message);
+        throw error;
+    }
+};
 
-                if (!query.trim()) {
-                    console.log('Please enter a valid search query.\n');
-                    continue;
-                }
+// Function to calculate similarity between search query and product name
+const calculateRelevanceScore = (searchQuery, productName) => {
+    if (!productName || productName === "nil") return 0;
+    
+    const query = searchQuery.toLowerCase().trim();
+    const product = productName.toLowerCase().trim();
+    
+    const queryWords = query.split(/\s+/).filter(word => 
+        word.length > 2 && !['the', 'and', 'for', 'with'].includes(word)
+    );
+    const productWords = product.split(/\s+/);
+    
+    let score = 0;
+    let exactMatches = 0;
+    let partialMatches = 0;
+    
+    queryWords.forEach(queryWord => {
+        if (productWords.some(productWord => productWord.includes(queryWord))) {
+            exactMatches++;
+            score += 10;
+        }
+    });
+    
+    queryWords.forEach(queryWord => {
+        productWords.forEach(productWord => {
+            if (productWord.includes(queryWord.substring(0, 3)) && queryWord.length > 3) {
+                partialMatches++;
+                score += 3;
+            }
+        });
+    });
+    
+    if (product.includes(query)) {
+        score += 20;
+    }
+    
+    let orderBonus = 0;
+    for (let i = 0; i < queryWords.length - 1; i++) {
+        const currentWordIndex = product.indexOf(queryWords[i]);
+        const nextWordIndex = product.indexOf(queryWords[i + 1]);
+        if (currentWordIndex !== -1 && nextWordIndex !== -1 && currentWordIndex < nextWordIndex) {
+            orderBonus += 5;
+        }
+    }
+    score += orderBonus;
+    
+    const relevancePercentage = Math.min((score / (queryWords.length * 10)) * 100, 100);
+    
+    return {
+        score: Math.round(relevancePercentage),
+        exactMatches,
+        partialMatches,
+        details: `${exactMatches} exact matches, ${partialMatches} partial matches`
+    };
+};
 
-                const useCache = (await question('Use cached results if available? (y/n): ')).toLowerCase() === 'y';
-                const maxPrice = await question('Maximum price (USD, optional): ');
+// Enhanced human-like mouse movements
+const humanMouseMove = async (page, x, y) => {
+    const currentPos = await page.evaluate(() => ({ 
+        x: window.mouseX || 0, 
+        y: window.mouseY || 0 
+    }));
+    
+    const steps = Math.floor(Math.random() * 10) + 15;
+    const stepX = (x - currentPos.x) / steps;
+    const stepY = (y - currentPos.y) / steps;
+    
+    for (let i = 0; i <= steps; i++) {
+        const currentX = currentPos.x + (stepX * i) + (Math.random() * 3 - 1.5);
+        const currentY = currentPos.y + (stepY * i) + (Math.random() * 3 - 1.5);
+        
+        await page.mouse.move(currentX, currentY);
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 10 + 5));
+    }
+    
+    await page.evaluate((x, y) => {
+        window.mouseX = x;
+        window.mouseY = y;
+    }, x, y);
+};
 
-                console.log('\n⏳ Scraping started...\n');
-                const startTime = Date.now();
+// Human-like scrolling behavior
+const humanScroll = async (page) => {
+    const scrollCount = Math.floor(Math.random() * 3) + 2;
+    
+    for (let i = 0; i < scrollCount; i++) {
+        const scrollAmount = Math.floor(Math.random() * 400) + 200;
+        await page.evaluate((amount) => {
+            window.scrollBy(0, amount);
+        }, scrollAmount);
+        
+        await humanDelay(500, 1500);
+    }
+};
 
-                let products = [];
-
-                // Check cache first
-                if (useCache && mongoConnected) {
-                    products = await scraper.getCachedResults(query.trim());
-                    if (products.length > 0) {
-                        console.log(`✅ Found ${products.length} cached results`);
-                    }
-                }
-
-                // Scrape if no cache results
-                if (products.length === 0) {
-                    products = await scraper.scrapeWithRetry(
-                        query.trim(), 
-                        maxPrice.trim(),
-                        []
-                    );
-                    
-                    // Save to MongoDB
-                    if (mongoConnected && products.length > 0) {
-                        await scraper.saveToMongoDB(products);
-                    }
-                }
-
-                const totalTime = Date.now() - startTime;
-                
-                console.log(`\n✅ Scraping completed in ${totalTime}ms`);
-                console.log(`📦 Found ${products.length} products\n`);
-
-                // Display results
-                products.forEach((product, index) => {
-                    console.log(`--- Product ${index + 1} ---`);
-                    console.log(`Name: ${product.productName}`);
-                    console.log(`Price: ${product.price}`);
-                    console.log(`Company: ${product.company}`);
-                    console.log(`Rating: ${product.rating}`);
-                    console.log(`URL: ${product.productUrl}`);
-                    console.log('');
-                });
-
-                // Export option
-                const shouldExport = (await question('Export results to file? (y/n): ')).toLowerCase() === 'y';
-                if (shouldExport) {
-                    const filename = await scraper.exportResults(products);
-                    console.log(`📁 Results exported to ${filename}`);
-                }
-
-                console.log('\n' + '='.repeat(50) + '\n');
-
-            } catch (error) {
-                console.error(`❌ Error: ${error.message}\n`);
-                logger.error('Scraping error:', error);
+// Enhanced page load handler with human-like behavior
+const handlePageLoad = async (page) => {
+    console.log('🤖 Mimicking human browsing behavior...');
+    
+    // Initial page load delay
+    await longDelay();
+    
+    // Simulate reading the page
+    await humanScroll(page);
+    await mediumDelay();
+    
+    // Handle potential popups with human-like interactions
+    try {
+        const acceptButton = await page.$('[data-spm-click*="accept"], .btn-accept, [class*="accept"], .cookie-accept');
+        if (acceptButton) {
+            console.log('📋 Handling cookie popup...');
+            const buttonBox = await acceptButton.boundingBox();
+            if (buttonBox) {
+                await humanMouseMove(page, 
+                    buttonBox.x + buttonBox.width / 2, 
+                    buttonBox.y + buttonBox.height / 2
+                );
+                await shortDelay();
+                await acceptButton.click();
+                await mediumDelay();
             }
         }
+    } catch (error) {
+        // No popup found
+    }
+    
+    // Handle login/signup modals
+    try {
+        const closeSelectors = [
+            '.close', 
+            '.modal-close', 
+            '[aria-label="close"]',
+            '.popup-close',
+            '.dialog-close'
+        ];
+        
+        for (const selector of closeSelectors) {
+            const closeButton = await page.$(selector);
+            if (closeButton) {
+                console.log('❌ Closing modal popup...');
+                const buttonBox = await closeButton.boundingBox();
+                if (buttonBox) {
+                    await humanMouseMove(page, 
+                        buttonBox.x + buttonBox.width / 2, 
+                        buttonBox.y + buttonBox.height / 2
+                    );
+                    await shortDelay();
+                    await closeButton.click();
+                    await mediumDelay();
+                    break;
+                }
+            }
+        }
+    } catch (error) {
+        // No modal found
+    }
+    
+    // Simulate more human browsing
+    await page.evaluate(() => {
+        // Random small movements
+        document.addEventListener('mousemove', (e) => {
+            window.mouseX = e.clientX;
+            window.mouseY = e.clientY;
+        });
+    });
+    
+    // Additional human-like delays and movements
+    await humanScroll(page);
+    await shortDelay();
+};
 
-        // Show performance report
-        console.log('\n📊 Performance Report:');
-        console.log(JSON.stringify(scraper.getPerformanceReport(), null, 2));
+// Enhanced stealth configuration
+const createStealthyBrowser = async () => {
+    const browser = await puppeteer.launch({
+        headless: "new", // Use new headless mode for better stealth
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-dev-tools',
+            '--disable-extensions',
+            '--disable-default-apps',
+            '--disable-translate',
+            '--disable-device-discovery-notifications',
+            '--disable-software-rasterizer',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection',
+            '--disable-hang-monitor',
+            '--disable-popup-blocking',
+            '--disable-prompt-on-repost',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-infobars',
+            '--enable-features=NetworkService',
+            '--force-color-profile=srgb',
+            '--metrics-recording-only',
+            '--use-mock-keychain',
+            '--disable-web-security',
+            '--allow-running-insecure-content',
+            '--disable-notifications',
+            '--mute-audio',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-background-networking',
+            '--disable-breakpad',
+            '--disable-component-update',
+            '--disable-domain-reliability',
+            '--disable-sync',
+            '--lang=en-US',
+            '--accept-lang=en-US,en;q=0.9'
+        ],
+        ignoreDefaultArgs: ['--enable-automation'],
+        slowMo: Math.random() * 50 + 10 // Random slowdown
+    });
+    
+    return browser;
+};
+
+// Enhanced page setup with randomization
+const setupPage = async (browser) => {
+    const page = await browser.newPage();
+    
+    // Random viewport sizes
+    const viewports = [
+        { width: 1920, height: 1080 },
+        { width: 1366, height: 768 },
+        { width: 1440, height: 900 },
+        { width: 1536, height: 864 },
+        { width: 1600, height: 900 }
+    ];
+    
+    const viewport = viewports[Math.floor(Math.random() * viewports.length)];
+    await page.setViewport(viewport);
+    
+    // Set random user agent
+    const userAgent = getRandomUserAgent();
+    await page.setUserAgent(userAgent);
+    console.log(`🎭 Using User Agent: ${userAgent.split(' ')[0]}...`);
+    
+    // Enhanced stealth measures
+    await page.evaluateOnNewDocument(() => {
+        // Remove webdriver property
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        
+        // Mock plugins
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5]
+        });
+        
+        // Mock languages
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en']
+        });
+        
+        // Mock hardware concurrency
+        Object.defineProperty(navigator, 'hardwareConcurrency', {
+            get: () => 4 + Math.floor(Math.random() * 4)
+        });
+        
+        // Mock memory
+        Object.defineProperty(navigator, 'deviceMemory', {
+            get: () => 8
+        });
+        
+        // Override permissions
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => (
+            parameters.name === 'notifications' ?
+                Promise.resolve({ state: Notification.permission }) :
+                originalQuery(parameters)
+        );
+        
+        // Mock chrome object
+        window.chrome = {
+            runtime: {},
+            loadTimes: function() {},
+            csi: function() {},
+            app: {}
+        };
+        
+        // Add some randomness to screen properties
+        Object.defineProperty(screen, 'availHeight', {
+            get: () => screen.height - Math.floor(Math.random() * 100)
+        });
+    });
+    
+    // Set extra headers
+    await page.setExtraHTTPHeaders({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'max-age=0',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'cross-site',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
+    });
+    
+    return page;
+};
+
+// Scrape only the first 5 most relevant products
+const scrapeTopProducts = async (page, searchQuery, maxProducts = 5) => {
+    try {
+        console.log('🔍 Looking for products...');
+        await mediumDelay();
+        await page.waitForSelector('[data-spm*="product"], .product-item, .search-card, [class*="card"]', {timeout: 20000});
+    } catch (error) {
+        console.log("❌ No products found on this page");
+        return [];
+    }
+
+    // Simulate human reading behavior
+    await humanScroll(page);
+    await shortDelay();
+
+    const containerSelectors = [
+        '.fy23-search-card',
+        '.search-card',
+        '.product-item',
+        '[data-spm*="product"]',
+        '.card'
+    ];
+
+    let productContainersSelector = '';
+    for (const selector of containerSelectors) {
+        const count = await page.evaluate((sel) => document.querySelectorAll(sel).length, selector);
+        if (count > 0) {
+            productContainersSelector = selector;
+            console.log(`📦 Found ${count} products using selector: ${selector}`);
+            break;
+        }
+    }
+
+    if (!productContainersSelector) {
+        console.log("❌ No product containers found. Page might have changed structure.");
+        return [];
+    }
+
+    const productDataList = await page.evaluate(async (selector, nameSelectors, priceSelectors, linkSelectors, ratingSelectors, imageSelectors, companySelectors, searchQuery) => {
+        const containers = Array.from(document.querySelectorAll(selector)).slice(0, 20);
+        const products = [];
+
+        const extractData = (container, selectors, attribute = null) => {
+            for (const sel of selectors) {
+                const elem = container.querySelector(sel);
+                if (elem) {
+                    if (attribute) {
+                        return elem.getAttribute(attribute) || "nil";
+                    } else {
+                        return elem.textContent.trim() || "nil";
+                    }
+                }
+            }
+            return "nil";
+        };
+
+        const calculateRelevanceScore = (searchQuery, productName) => {
+            if (!productName || productName === "nil") return 0;
+            
+            const query = searchQuery.toLowerCase().trim();
+            const product = productName.toLowerCase().trim();
+            
+            const queryWords = query.split(/\s+/).filter(word => 
+                word.length > 2 && !['the', 'and', 'for', 'with'].includes(word)
+            );
+            const productWords = product.split(/\s+/);
+            
+            let score = 0;
+            let exactMatches = 0;
+            let partialMatches = 0;
+            
+            queryWords.forEach(queryWord => {
+                if (productWords.some(productWord => productWord.includes(queryWord))) {
+                    exactMatches++;
+                    score += 10;
+                }
+            });
+            
+            queryWords.forEach(queryWord => {
+                productWords.forEach(productWord => {
+                    if (productWord.includes(queryWord.substring(0, 3)) && queryWord.length > 3) {
+                        partialMatches++;
+                        score += 3;
+                    }
+                });
+            });
+            
+            if (product.includes(query)) {
+                score += 20;
+            }
+            
+            let orderBonus = 0;
+            for (let i = 0; i < queryWords.length - 1; i++) {
+                const currentWordIndex = product.indexOf(queryWords[i]);
+                const nextWordIndex = product.indexOf(queryWords[i + 1]);
+                if (currentWordIndex !== -1 && nextWordIndex !== -1 && currentWordIndex < nextWordIndex) {
+                    orderBonus += 5;
+                }
+            }
+            score += orderBonus;
+            
+            const relevancePercentage = Math.min((score / (queryWords.length * 10)) * 100, 100);
+            
+            return {
+                score: Math.round(relevancePercentage),
+                exactMatches,
+                partialMatches,
+                details: `${exactMatches} exact matches, ${partialMatches} partial matches`
+            };
+        };
+
+        for (const container of containers) {
+            let name = extractData(container, nameSelectors);
+            let price = extractData(container, priceSelectors);
+            let productLink = extractData(container, linkSelectors, 'href');
+            if (productLink !== "nil" && productLink.startsWith('/')) {
+                productLink = 'https://www.alibaba.com' + productLink;
+            }
+            let rating = extractData(container, ratingSelectors);
+            let imageLink = extractData(container, imageSelectors, 'src');
+            let company = extractData(container, companySelectors);
+
+            if (name !== 'nil' && productLink !== 'nil') {
+                const relevance = calculateRelevanceScore(searchQuery, name);
+                products.push({
+                    productName: name,
+                    price: price,
+                    company: company,
+                    rating: rating,
+                    imageLink: imageLink,
+                    productLink: productLink,
+                    relevanceScore: relevance.score,
+                    relevanceDetails: relevance.details
+                });
+            }
+        }
+        return products;
+    }, productContainersSelector, [
+        '.search-card-e-title a span',
+        '.title a',
+        '.product-title',
+        'h3 a',
+        'a[title] span'
+    ], [
+        '.search-card-e-price-main',
+        '.price-main',
+        '.price',
+        '[data-spm*="price"]',
+        '.cost'
+    ], [
+        '.search-card-e-title a',
+        '.title a',
+        '.product-title a',
+        'h3 a',
+        'a[href*="product"]'
+    ], [
+        '.search-card-e-review strong',
+        '.rating strong',
+        '.review-score',
+        '.stars'
+    ], [
+        'a.search-card-e-slider__link img.search-card-e-slider__img',
+        '.product-img img',
+        'img[src*="jpg"], img[src*="png"]'
+    ], [
+        '.search-card-e-company',
+        '.company-name',
+        '.supplier'
+    ], searchQuery);
+
+    const sortedProducts = productDataList
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .slice(0, maxProducts);
+
+    console.log(`\n📊 Found ${productDataList.length} total products, showing top ${sortedProducts.length} most relevant:`);
+    
+    sortedProducts.forEach((product, index) => {
+        console.log(`\n🏆 Rank ${index + 1} (${product.relevanceScore}% match):`);
+        console.log(`📱 Product: ${product.productName}`);
+        console.log(`💰 Price: ${product.price}`);
+        console.log(`🏢 Company: ${product.company}`);
+        console.log(`⭐ Rating: ${product.rating}`);
+        console.log(`🔗 Link: ${product.productLink}`);
+        console.log(`📈 Match Details: ${product.relevanceDetails}`);
+    });
+
+    return sortedProducts;
+};
+
+const main = async () => {
+    const browser = await createStealthyBrowser();
+    const page = await setupPage(browser);
+
+    try {
+        await connectToDatabase();
+        
+        const userInput = await question("Enter the specific product you want to search for (e.g., 'iPhone 14 Pro Max'): ");
+        const maxPriceInput = await question("Enter the maximum price you want to filter by (or press Enter to skip): ");
+
+        const searchQuery = encodeURIComponent(userInput);
+        let url = `https://www.alibaba.com/trade/search?fsb=y&IndexArea=product_en&CatId=&SearchText=${searchQuery}`;
+        
+        if (maxPriceInput) {
+            url += `&priceto=${maxPriceInput}`;
+        }
+
+        console.log(`\n🔍 Searching for: "${userInput}"`);
+        console.log("🌐 Loading the search page...");
+        
+        // Navigate with human-like behavior
+        await page.goto(url, {waitUntil: 'networkidle2'});
+
+        await handlePageLoad(page);
+
+        // Additional human-like interactions
+        await humanScroll(page);
+        await mediumDelay();
+
+        const topProducts = await scrapeTopProducts(page, userInput, 5);
+
+        if (topProducts.length > 0) {
+            await saveToDatabase(topProducts, userInput);
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `alibaba_results_${timestamp}.json`;
+            
+            const results = {
+                searchQuery: userInput,
+                timestamp: new Date().toISOString(),
+                totalResults: topProducts.length,
+                products: topProducts
+            };
+            
+            await fs.writeFile(filename, JSON.stringify(results, null, 2), "utf-8");
+            console.log(`\n✅ Successfully found ${topProducts.length} most relevant products for "${userInput}"`);
+            console.log(`💾 Results saved to MongoDB collection 'alibaba' and file ${filename}`);
+            
+            console.log(`\n📋 SUMMARY - Top matches for "${userInput}":`);
+            topProducts.forEach((product, index) => {
+                console.log(`${index + 1}. ${product.productName} (${product.relevanceScore}% match) - ${product.price}`);
+            });
+            
+        } else {
+            console.log(`\n❌ No relevant products found for "${userInput}". Try a different search term.`);
+        }
 
     } catch (error) {
-        console.error('Fatal error:', error);
-        logger.error('Fatal error:', error);
+        console.error("❌ An error occurred:", error);
     } finally {
-        await scraper.cleanup();
+        await browser.close();
+        await closeDatabase();
         rl.close();
     }
-}
+};
 
-// Handle process termination
-process.on('SIGINT', async () => {
-    console.log('\n\n⚠️  Shutting down gracefully...');
-    rl.close();
-    process.exit(0);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Start the scraper
-if (import.meta.url === `file://${process.argv[1]}`) {
-    main().catch(console.error);
-}
-
-export default AdvancedProductScraper;
+main().catch(console.error);

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const SearchResultSchema = new mongoose.Schema({
   query: {
@@ -36,4 +36,6 @@ SearchResultSchema.index({ searchedAt: 1 }, {
   expireAfterSeconds: 7 * 24 * 60 * 60
 });
 
-module.exports = mongoose.model("SearchResult", SearchResultSchema);
+const SearchResult = mongoose.model("SearchResult", SearchResultSchema);
+
+export default SearchResult;

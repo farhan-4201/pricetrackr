@@ -1,0 +1,19 @@
+# Enhanced AliExpress Scraper Requirements
+# Core async HTTP client
+aiohttp>=3.8.0
+
+# MongoDB driver
+pymongo>=4.0.0
+
+# User agent rotation
+fake-useragent>=1.4.0
+
+# SSL certificates
+certifi>=2022.0.0
+
+# HTML parsing
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# Browser automation
+playwright>=1.30.0
