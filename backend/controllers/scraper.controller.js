@@ -1,6 +1,10 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const { scrapeAlibaba: scrapeAlibabaFunc } = require('../scrapers/alibaba_scraper');
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { scrapeAlibabaProducts } from '../scrapers/alibaba_scraper.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Helper function to parse price strings
 function parsePrice(priceStr) {
@@ -47,19 +51,21 @@ class ScraperController {
 
                 try {
                     const rawResults = JSON.parse(dataString);
-                    // Ensure we always return an array of products
-                    const products = Array.isArray(rawResults) ? rawResults : [rawResults];
+                    // Handle the new format where it's a single product object
+                    if (rawResults.error) {
+                        return reject(new Error(rawResults.message || rawResults.error));
+                    }
 
-                    // Format each product
-                    const formattedProducts = products.map(product => ({
-                        name: product.name || '',
-                        price: parsePrice(product.currentPrice),
-                        url: product.url || '',
-                        imageUrl: product.imageUrl || null,
+                    // Convert to array format
+                    const product = {
+                        name: rawResults.name || '',
+                        price: parsePrice(rawResults.currentPrice),
+                        url: rawResults.url || '',
+                        imageUrl: rawResults.imageUrl || null,
                         marketplace: 'Daraz'
-                    }));
+                    };
 
-                    resolve({ products: formattedProducts });
+                    resolve({ products: [product] });
                 } catch (error) {
                     console.error('Failed to parse scraper output:', error, 'Raw data:', dataString);
                     reject(new Error('Failed to parse scraper output'));
@@ -69,71 +75,48 @@ class ScraperController {
     }
 
     async scrapeAlibaba(query) {
-        const rawResults = await scrapeAlibabaFunc(query);
-        const formattedProducts = rawResults.map(product => ({
-            name: product.name || product['Product Name'] || '',
-            price: parsePrice(product.price || product['Price']),
-            url: product.url || product['Product Link'] || '',
-            imageUrl: product.imageUrl || product['Image Link'] || null,
-            marketplace: 'Alibaba',
-            company: product.company || product['Company'] || null,
-            rating: product.rating || product['Rating'] || null,
-            moq: product.moq || product['MOQ'] || null
-        }));
-        return { products: formattedProducts };
+        try {
+            const results = await scrapeAlibabaProducts(query);
+            const formattedProducts = results.products.map(product => ({
+                name: product.name || product['Product Name'] || '',
+                price: parsePrice(product.price || product['Price']),
+                url: product.url || product['Product Link'] || '',
+                imageUrl: product.imageUrl || product['Image Link'] || null,
+                marketplace: 'Alibaba',
+                company: product.company || product['Company'] || null,
+                rating: product.rating || product['Rating'] || null,
+                moq: product.moq || product['MOQ'] || null
+            }));
+            return { products: formattedProducts };
+        } catch (error) {
+            console.error('Alibaba scraping failed:', error);
+            throw error;
+        }
+    }
+
+    async scrapeAll(query) {
+        const [daraz, alibaba] = await Promise.allSettled([
+            this.scrapeDaraz(query),
+            this.scrapeAlibaba(query)
+        ]);
+
+        const allProducts = [];
+        if (daraz.status === 'fulfilled') {
+            allProducts.push(...daraz.value.products);
+        } else {
+            console.error('Daraz scraping failed:', daraz.reason);
+        }
+
+        if (alibaba.status === 'fulfilled') {
+            allProducts.push(...alibaba.value.products);
+        } else {
+            console.error('Alibaba scraping failed:', alibaba.reason);
+        }
+
+        return { products: allProducts, total: allProducts.length };
     }
 }
 
-const scrapeProducts = async (req, res) => {
-    const { query } = req.body;
-    
-    if (!query) {
-        return res.status(400).json({ error: 'Search query is required' });
-    }
+const scraperController = new ScraperController();
 
-    try {
-        // Set timeout for each scraper
-        const timeout = 15000; // 15 seconds
-        
-        // Run scrapers with timeout
-        const results = await Promise.allSettled([
-            Promise.race([
-                scrapeAlibaba(query),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Alibaba timeout')), timeout)
-                )
-            ]),
-            Promise.race([
-                scrapeDaraz(query),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Daraz timeout')), timeout)
-                )
-            ])
-        ]);
-
-        // Process results
-        const products = results.reduce((acc, result) => {
-            if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-                acc.push(...result.value);
-            }
-            return acc;
-        }, []);
-
-        // Return whatever results we have
-        return res.json({ 
-            products,
-            total: products.length,
-            status: 'success'
-        });
-
-    } catch (error) {
-        console.error('Scraping error:', error);
-        return res.status(500).json({ 
-            error: 'Scraping failed',
-            message: error.message,
-            status: 'error'
-        });
-    }
-};
-
-module.exports = new ScraperController();
+export default scraperController;

@@ -1,8 +1,8 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/user");
+import jwt from "jsonwebtoken";
+import User from "../models/user.js";
 
 // Verify JWT token
-exports.authenticate = (req, res, next) => {
+export const authenticate = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -19,14 +19,14 @@ exports.authenticate = (req, res, next) => {
 };
 
 // Generate JWT token
-exports.generateToken = (userId) => {
+export const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '30d'
   });
 };
 
 // Extract user from token (optional authentication)
-exports.optionalAuth = (req, res, next) => {
+export const optionalAuth = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 

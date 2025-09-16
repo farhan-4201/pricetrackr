@@ -1,12 +1,11 @@
-require('dotenv').config();
-
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const connectDB = require("./db");
-const usersRouter = require("./routes/users");
-const productsRouter = require("./routes/products");
-const notificationsRouter = require("./routes/notifications");
+import 'dotenv/config';
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import connectDB from "./db.js";
+import usersRouter from "./routes/users.js";
+import productsRouter from "./routes/products.js";
+import notificationsRouter from "./routes/notifications.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;

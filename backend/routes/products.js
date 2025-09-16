@@ -1,9 +1,12 @@
-const express = require("express");
-const Product = require("../models/product");
-const auth = require("../middleware/auth").authenticate;
+import express from "express";
+import Product from "../models/product.js";
+import { authenticate as auth } from "../middleware/auth.js";
+import scraperController from '../controllers/scraper.controller.js';
+import SearchResult from '../models/search_result.js';
+
 const router = express.Router();
-const scraperController = require('../controllers/scraper.controller');
-const { validateSearch } = require('../middleware/validation');
+
+// Note: validateSearch not used in current implementation, can be added later if needed
 
 // Get all products for current user
 router.get("/", auth, async (req, res) => {
@@ -289,4 +292,4 @@ router.post('/scrape', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

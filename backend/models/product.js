@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const PriceHistorySchema = new mongoose.Schema({
   price: { type: Number, required: true },
@@ -45,4 +45,6 @@ ProductSchema.index({ userId: 1 });
 ProductSchema.index({ vendor: 1 });
 ProductSchema.index({ category: 1 });
 
-module.exports = mongoose.model("Product", ProductSchema);
+const Product = mongoose.model("Product", ProductSchema);
+
+export default Product;
