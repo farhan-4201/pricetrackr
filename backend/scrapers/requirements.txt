@@ -1,4 +1,0 @@
-beautifulsoup4
-fuzzywuzzy
-pymongo
-requests
