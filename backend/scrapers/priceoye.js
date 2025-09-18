@@ -42,28 +42,81 @@ function isProductRelevant(product, searchQuery) {
 async function scrapePriceOye(query, maxProducts = 5) {
     console.log(`🔍 Searching PriceOye for: "${query}"`);
     console.log('⏳ Opening browser...\n');
-    
-    const browser = await chromium.launch({ 
-        headless: true,
-        args: ['--disable-blink-features=AutomationControlled', '--no-sandbox']
-    });
-    
-    const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
-    
-    const page = await context.newPage();
-    
+
+    let browser;
     try {
-        const searchUrl = `https://priceoye.pk/search?q=${encodeURIComponent(query)}`;
-        console.log(`📄 Loading search results...`);
-        
-        await page.goto(searchUrl, { 
-            waitUntil: 'domcontentloaded', 
-            timeout: 15000 
+        browser = await chromium.launch({
+            headless: true,
+            args: [
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-web-security',
+                '--allow-running-insecure-content',
+                '--disable-features=VizDisplayCompositor',
+                '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ]
         });
 
-        await page.waitForTimeout(3000);
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            ignoreHTTPSErrors: true,
+            viewport: { width: 1280, height: 720 }
+        });
+
+        const page = await context.newPage();
+
+        // Set additional headers
+        await page.setExtraHTTPHeaders({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        });
+
+        const searchUrl = `https://priceoye.pk/search?q=${encodeURIComponent(query)}`;
+        console.log(`📄 Loading search results from: ${searchUrl}`);
+
+        // Try navigation with retry logic
+        let retryCount = 0;
+        const maxRetries = 2;
+
+        while (retryCount <= maxRetries) {
+            try {
+                const response = await page.goto(searchUrl, {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 20000
+                });
+
+                if (!response) {
+                    throw new Error('No response received');
+                }
+
+                console.log(`✅ Page loaded with status: ${response.status()}`);
+
+                // Check if we got a valid page
+                if (response.status() >= 400) {
+                    throw new Error(`HTTP ${response.status()}: ${response.statusText()}`);
+                }
+
+                break; // Success, exit retry loop
+
+            } catch (error) {
+                retryCount++;
+                console.log(`❌ Navigation attempt ${retryCount} failed: ${error.message}`);
+
+                if (retryCount <= maxRetries) {
+                    console.log(`🔄 Retrying in 3 seconds...`);
+                    await page.waitForTimeout(3000);
+                } else {
+                    throw new Error(`Failed to load page after ${maxRetries + 1} attempts: ${error.message}`);
+                }
+            }
+        }
+
+        // Enhanced wait for content to load
+        console.log('⏳ Waiting for page content to load...');
+        await page.waitForTimeout(5000);
 
         // Enhanced product selectors
         const productSelectors = [
@@ -175,94 +228,5 @@ async function scrapePriceOye(query, maxProducts = 5) {
     }
 }
 
-// Main CLI Application
-async function runCLI() {
-    const rl = createInterface();
-    
-    console.log('\n🛒 PriceOye Product Scraper');
-    console.log('============================\n');
-    
-    try {
-        while (true) {
-            // Get search query from user
-            const query = await askQuestion(rl, '🔍 Enter product name to search (or "exit" to quit): ');
-            
-            if (query.toLowerCase() === 'exit' || query.toLowerCase() === 'quit') {
-                console.log('\n👋 Goodbye!');
-                break;
-            }
-            
-            if (!query) {
-                console.log('⚠️  Please enter a product name.\n');
-                continue;
-            }
-            
-            // Get number of products to show
-            const maxProductsInput = await askQuestion(rl, '📊 How many products to show? (2-10, default: 5): ');
-            const maxProducts = parseInt(maxProductsInput) || 5;
-            
-            if (maxProducts < 1 || maxProducts > 10) {
-                console.log('⚠️  Number of products should be between 1-10. Using default (5).\n');
-            }
-            
-            const finalMaxProducts = Math.min(Math.max(maxProducts, 1), 10);
-            
-            console.log('\n' + '='.repeat(50));
-            
-            // Scrape products
-            const results = await scrapePriceOye(query, finalMaxProducts);
-            
-            console.log('\n' + '='.repeat(50));
-            
-            if (results.length > 0) {
-                console.log(`\n✅ Found ${results.length} relevant products for "${query}":\n`);
-                
-                results.forEach((product, index) => {
-                    console.log(`${index + 1}. 📱 ${product.title}`);
-                    console.log(`   💰 Price: ${product.price}`);
-                    console.log(`   🏪 Store: ${product.store}`);
-                    if (product.link) {
-                        console.log(`   🔗 Link: ${product.link}`);
-                    }
-                    console.log('');
-                });
-            } else {
-                console.log(`\n❌ No relevant products found for "${query}"`);
-                console.log('💡 Try different keywords or check spelling.\n');
-            }
-            
-            console.log('─'.repeat(50) + '\n');
-        }
-    } catch (error) {
-        console.error('❌ Application error:', error.message);
-    } finally {
-        rl.close();
-    }
-}
-
-// Handle command line arguments or run CLI
-if (process.argv.length > 2) {
-    // Direct command line usage
-    const query = process.argv[2];
-    const maxProducts = parseInt(process.argv[3]) || 5;
-    
-    (async () => {
-        const results = await scrapePriceOye(query, maxProducts);
-        
-        if (results.length > 0) {
-            console.log(`\n✅ Found ${results.length} relevant products:\n`);
-            results.forEach((product, index) => {
-                console.log(`${index + 1}. ${product.title}`);
-                console.log(`   Price: ${product.price}`);
-                console.log(`   Store: ${product.store}`);
-                if (product.link) console.log(`   Link: ${product.link}`);
-                console.log('');
-            });
-        } else {
-            console.log(`\n❌ No relevant products found for "${query}"`);
-        }
-    })();
-} else {
-    // Interactive CLI mode
-    runCLI();
-}
+// Export the scraping function for programmatic use
+export { scrapePriceOye };

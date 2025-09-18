@@ -1,12 +1,45 @@
 import express from "express";
-import Product from "../models/product.js";
+import mongoose from "mongoose";
 import { authenticate as auth } from "../middleware/auth.js";
-import scraperController from '../controllers/scraper.controller.js';
-import SearchResult from '../models/search_result.js';
+import scraperController from "../controllers/scraper.controller.js";
+import SearchResult from "../models/search_result.js";
+import { scrapingRateLimiter } from "../middleware/rateLimiter.js";
+import { validateSearch } from "../middleware/validation.js";
 
 const router = express.Router();
 
-// Note: validateSearch not used in current implementation, can be added later if needed
+// --- Product Schema ---
+const productSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userEmail: { type: String, required: true },
+  name: { type: String, required: true },
+  sku: { type: String },
+  category: { type: String },
+  currentPrice: { type: Number, required: true },
+  lowestPrice: { type: Number },
+  highestPrice: { type: Number },
+  priceChange24h: { type: Number, default: 0 },
+  priceHistory: [{
+    price: { type: Number, required: true },
+    date: { type: Date, default: Date.now }
+  }],
+  alerts: [{
+    type: {
+      type: String,
+      enum: ['priceDrop', 'priceRise'],
+      required: true
+    },
+    threshold: { type: Number, required: true },
+    isActive: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  isActive: { type: Boolean, default: true },
+  lastChecked: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const Product = mongoose.model("Product", productSchema);
+
+// --- ROUTES ---
 
 // Get all products for current user
 router.get("/", auth, async (req, res) => {
@@ -19,17 +52,14 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// Add a new product to watchlist
+// Add a new product
 router.post("/", auth, async (req, res) => {
   try {
     const product = new Product({
       ...req.body,
       userId: req.user._id,
       userEmail: req.user.emailAddress,
-      priceHistory: [{
-        price: req.body.currentPrice,
-        date: new Date()
-      }],
+      priceHistory: [{ price: req.body.currentPrice, date: new Date() }],
       lowestPrice: req.body.currentPrice,
       highestPrice: req.body.currentPrice
     });
@@ -46,26 +76,17 @@ router.put("/:id/price", auth, async (req, res) => {
     const product = await Product.findOne({ _id: req.params.id, userId: req.user._id });
     if (!product) return res.status(404).json({ error: "Product not found" });
 
+    const oldPrice = product.currentPrice;
     const newPrice = req.body.price;
 
-    // Add new price to history
-    product.priceHistory.push({
-      price: newPrice,
-      date: new Date()
-    });
-
-    // Update prices
+    product.priceHistory.push({ price: newPrice, date: new Date() });
     product.currentPrice = newPrice;
-    const oldPrice = product.currentPrice;
 
     if (newPrice < product.lowestPrice) product.lowestPrice = newPrice;
     if (newPrice > product.highestPrice) product.highestPrice = newPrice;
 
-    // Calculate changes
     if (oldPrice !== 0) {
-      const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
-      // Simple price change (last entry in history vs current)
-      product.priceChange24h = priceChange;
+      product.priceChange24h = ((newPrice - oldPrice) / oldPrice) * 100;
     }
 
     product.lastChecked = new Date();
@@ -92,7 +113,7 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// Add alert to product
+// Add alert
 router.post("/:id/alerts", auth, async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, userId: req.user._id });
@@ -123,7 +144,7 @@ router.put("/:id/alerts/:alertId", auth, async (req, res) => {
   }
 });
 
-// Delete product
+// Delete product (soft delete)
 router.delete("/:id", auth, async (req, res) => {
   try {
     const product = await Product.findOneAndUpdate(
@@ -146,14 +167,11 @@ router.get("/search", auth, async (req, res) => {
 
     if (query) {
       filter.$or = [
-        { name: { $regex: query, $options: 'i' } },
-        { sku: { $regex: query, $options: 'i' } }
+        { name: { $regex: query, $options: "i" } },
+        { sku: { $regex: query, $options: "i" } }
       ];
     }
-
-    if (category && category !== 'all') {
-      filter.category = category;
-    }
+    if (category && category !== "all") filter.category = category;
 
     const products = await Product.find(filter).sort({ lastChecked: -1 });
     res.json(products);
@@ -162,25 +180,23 @@ router.get("/search", auth, async (req, res) => {
   }
 });
 
-// Get product statistics
+// Product stats
 router.get("/stats/overview", auth, async (req, res) => {
   try {
     const products = await Product.find({ userId: req.user._id, isActive: true });
-
     const stats = {
       totalProducts: products.length,
       totalAlerts: products.reduce((sum, p) => sum + p.alerts.filter(a => a.isActive).length, 0),
       activeAlerts: products.reduce((sum, p) => sum + p.alerts.filter(a => a.isActive).length, 0),
       triggeredAlerts: products.reduce((sum, p) => sum + p.alerts.filter(a => !a.isActive).length, 0)
     };
-
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch statistics" });
   }
 });
 
-// Get price history for a product
+// Price history
 router.get("/:id/history", auth, async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, userId: req.user._id });
@@ -193,103 +209,135 @@ router.get("/:id/history", auth, async (req, res) => {
   }
 });
 
-// Scrape product from Daraz
-router.post('/scrape/daraz', async (req, res) => {
-    try {
-        const { query } = req.body;
-        if (!query) {
-            return res.status(400).json({ error: 'Search query is required' });
-        }
+// --- Scraping Endpoints ---
 
-        console.log('Received scrape request for query:', query); // Debug log
+// Daraz scrape
+router.post("/scrape/daraz", scrapingRateLimiter, validateSearch, async (req, res) => {
+  try {
+    const { query } = req.body;
+    console.log(`[${new Date().toISOString()}] Daraz scrape: ${query} from IP: ${req.ip}`);
 
-        const scraperController = require('../controllers/scraper.controller');
-        const results = await scraperController.scrapeDaraz(query);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout")), 30000)
+    );
+    const scrapePromise = scraperController.scrapeDaraz(query);
+    const results = await Promise.race([scrapePromise, timeoutPromise]);
 
-        if (!results || !results.products) {
-            throw new Error('Invalid scraper response format');
-        }
-
-        res.json(results);
-    } catch (error) {
-        console.error('Scraping error:', error);
-        res.status(500).json({ error: error.message || 'Failed to scrape products' });
+    if (results.products?.length > 0) {
+      const searchResult = new SearchResult({
+        query,
+        results: results.products.map(p => ({
+          name: p.name,
+          price: p.price,
+          url: p.url,
+          imageUrl: p.imageUrl,
+          marketplace: "Daraz"
+        })),
+        searchedAt: new Date(),
+        resultCount: results.products.length
+      });
+      await searchResult.save();
     }
+
+    res.json({ success: true, source: "Daraz", products: results.products, total: results.products.length, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error(`Daraz scrape error: ${error.message}`);
+    res.status(error.message.includes("timeout") ? 408 : 500).json({ error: error.message, source: "Daraz", timestamp: new Date().toISOString() });
+  }
 });
 
-// Scrape product from Alibaba
-router.post('/scrape/alibaba', async (req, res) => {
-    try {
-        const { query } = req.body;
-        if (!query) {
-            return res.status(400).json({ error: 'Search query is required' });
-        }
+// PriceOye scrape
+router.post("/scrape/priceoye", scrapingRateLimiter, validateSearch, async (req, res) => {
+  try {
+    const { query } = req.body;
+    console.log(`[${new Date().toISOString()}] PriceOye scrape: ${query} from IP: ${req.ip}`);
 
-        console.log('Received scrape request for Alibaba query:', query); // Debug log
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Request timeout")), 45000)
+    );
+    const scrapePromise = scraperController.scrapePriceOye(query);
+    const results = await Promise.race([scrapePromise, timeoutPromise]);
 
-        const scraperController = require('../controllers/scraper.controller');
-        const results = await scraperController.scrapeAlibaba(query);
-
-        if (!results || !results.products) {
-            throw new Error('Invalid scraper response format');
-        }
-
-        res.json(results);
-    } catch (error) {
-        console.error('Scraping error:', error);
-        res.status(500).json({ error: error.message || 'Failed to scrape products' });
+    if (results.products?.length > 0) {
+      const searchResult = new SearchResult({
+        query,
+        results: results.products.map(p => ({
+          name: p.name,
+          price: p.price,
+          url: p.url,
+          imageUrl: p.imageUrl,
+          marketplace: "PriceOye"
+        })),
+        searchedAt: new Date(),
+        resultCount: results.products.length
+      });
+      await searchResult.save();
     }
+
+    res.json({ success: true, source: "PriceOye", products: results.products, total: results.products.length, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error(`PriceOye scrape error: ${error.message}`);
+    res.status(error.message.includes("timeout") ? 408 : 500).json({ error: error.message, source: "PriceOye", timestamp: new Date().toISOString() });
+  }
 });
 
-// General scrape endpoint that combines both sources
-router.post('/scrape', async (req, res) => {
-    try {
-        const { query } = req.body;
-        if (!query) {
-            return res.status(400).json({ error: 'Search query is required' });
-        }
+// Combined scrape
+router.post("/scrape", scrapingRateLimiter, validateSearch, async (req, res) => {
+  try {
+    const { query, limit = 20 } = req.body;
+    console.log(`[${new Date().toISOString()}] Combined scrape: ${query} from IP: ${req.ip}`);
 
-        console.log('Received scrape request for both sources:', query);
+    const darazTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Daraz request timeout")), 30000));
+    const priceoyeTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("PriceOye request timeout")), 45000));
 
-        const scraperController = require('../controllers/scraper.controller');
-        const SearchResult = require('../models/search_result');
+    const [darazResult, priceoyeResult] = await Promise.allSettled([
+      Promise.race([scraperController.scrapeDaraz(query), darazTimeout]),
+      Promise.race([scraperController.scrapePriceOye(query), priceoyeTimeout])
+    ]);
 
-        // Scrape both concurrently
-        const [darazResults, alibabaResults] = await Promise.allSettled([
-            scraperController.scrapeDaraz(query),
-            scraperController.scrapeAlibaba(query)
-        ]);
+    const allProducts = [];
+    const sources = { daraz: { success: false, count: 0, error: null }, priceoye: { success: false, count: 0, error: null } };
 
-        const allProducts = [];
-
-        if (darazResults.status === 'fulfilled') {
-            allProducts.push(...darazResults.value.products);
-        } else {
-            console.error('Daraz scrape failed:', darazResults.reason);
-        }
-
-        if (alibabaResults.status === 'fulfilled') {
-            allProducts.push(...alibabaResults.value.products);
-        } else {
-            console.error('Alibaba scrape failed:', alibabaResults.reason);
-        }
-
-        // Store results in DB
-        if (allProducts.length > 0) {
-            const searchResult = new SearchResult({
-                query,
-                results: allProducts,
-                searchedAt: new Date(),
-                resultCount: allProducts.length
-            });
-            await searchResult.save();
-        }
-
-        res.json({ products: allProducts });
-    } catch (error) {
-        console.error('Combined scraping error:', error);
-        res.status(500).json({ error: error.message || 'Failed to scrape products' });
+    if (darazResult.status === "fulfilled") {
+      allProducts.push(...(darazResult.value.products || []));
+      sources.daraz = { success: true, count: darazResult.value.products.length };
+    } else {
+      sources.daraz.error = darazResult.reason?.message || "Unknown error";
     }
+
+    if (priceoyeResult.status === "fulfilled") {
+      allProducts.push(...(priceoyeResult.value.products || []));
+      sources.priceoye = { success: true, count: priceoyeResult.value.products.length };
+    } else {
+      sources.priceoye.error = priceoyeResult.reason?.message || "Unknown error";
+    }
+
+    const filteredProducts = allProducts
+      .filter(p => p.price && typeof p.price === "number" && p.price > 0)
+      .sort((a, b) => a.price - b.price)
+      .slice(0, limit);
+
+    if (filteredProducts.length > 0) {
+      const searchResult = new SearchResult({
+        query,
+        results: filteredProducts.map(p => ({
+          name: p.name,
+          price: p.price,
+          url: p.url,
+          imageUrl: p.imageUrl,
+          marketplace: p.marketplace
+        })),
+        searchedAt: new Date(),
+        resultCount: filteredProducts.length
+      });
+      await searchResult.save();
+    }
+
+    res.json({ success: true, query, products: filteredProducts, total: filteredProducts.length, sources, timestamp: new Date().toISOString(), cached: false });
+  } catch (error) {
+    console.error(`Combined scrape error: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message || "Internal server error", query: req.body.query, products: [], total: 0, timestamp: new Date().toISOString() });
+  }
 });
 
 export default router;

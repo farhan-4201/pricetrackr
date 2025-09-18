@@ -1,6 +1,7 @@
-const express = require("express");
-const Notification = require("../models/notification");
-const auth = require("../middleware/auth").authenticate;
+import express from "express";
+import Notification from "../models/notification.js";
+import { authenticate as auth } from "../middleware/auth.js";
+
 const router = express.Router();
 
 // Get all notifications for current user
@@ -20,6 +21,7 @@ router.get("/", auth, async (req, res) => {
 
     res.json(notifications);
   } catch (error) {
+    console.error("Fetch notifications error:", error);
     res.status(500).json({ error: "Failed to fetch notifications" });
   }
 });
@@ -35,6 +37,7 @@ router.put("/:id/read", auth, async (req, res) => {
     if (!notification) return res.status(404).json({ error: "Notification not found" });
     res.json(notification);
   } catch (error) {
+    console.error("Mark read error:", error);
     res.status(500).json({ error: "Failed to update notification" });
   }
 });
@@ -48,6 +51,7 @@ router.put("/mark-all-read", auth, async (req, res) => {
     );
     res.json({ message: `${result.modifiedCount} notifications marked as read` });
   } catch (error) {
+    console.error("Mark all read error:", error);
     res.status(500).json({ error: "Failed to update notifications" });
   }
 });
@@ -62,6 +66,7 @@ router.delete("/:id", auth, async (req, res) => {
     if (!notification) return res.status(404).json({ error: "Notification not found" });
     res.json({ message: "Notification deleted" });
   } catch (error) {
+    console.error("Delete notification error:", error);
     res.status(500).json({ error: "Failed to delete notification" });
   }
 });
@@ -75,6 +80,7 @@ router.get("/count", auth, async (req, res) => {
     });
     res.json({ unreadCount });
   } catch (error) {
+    console.error("Notification count error:", error);
     res.status(500).json({ error: "Failed to get notification count" });
   }
 });
@@ -89,8 +95,9 @@ router.post("/", auth, async (req, res) => {
     await notification.save();
     res.json(notification);
   } catch (error) {
+    console.error("Create notification error:", error);
     res.status(400).json({ error: error.message });
   }
 });
 
-module.exports = router;
+export default router;
