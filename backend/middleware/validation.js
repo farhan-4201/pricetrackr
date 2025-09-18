@@ -1,13 +1,13 @@
-const { body, validationResult } = require("express-validator");
+import { body, validationResult } from "express-validator";
 
 // Check for validation errors
-exports.handleValidationErrors = (req, res, next) => {
+export function handleValidationErrors(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   next();
-};
+}
 
 // Password strength validation
 const validatePasswordStrength = (password) => {
@@ -37,7 +37,7 @@ const validatePasswordStrength = (password) => {
 };
 
 // Registration validation
-exports.validateRegistration = [
+export const validateRegistration = [
   body('fullName')
     .trim()
     .isLength({ min: 2, max: 100 })
@@ -78,7 +78,7 @@ exports.validateRegistration = [
 ];
 
 // Login validation
-exports.validateLogin = [
+export const validateLogin = [
   body('emailAddress')
     .isEmail()
     .normalizeEmail()
@@ -89,14 +89,14 @@ exports.validateLogin = [
     .withMessage('Password is required')
 ];
 
-exports.validateSearch = (req, res, next) => {
+export const validateSearch = (req, res, next) => {
     const { query } = req.body;
-    
+
     if (!query || typeof query !== 'string' || query.length < 2) {
         return res.status(400).json({
             error: 'Invalid search query. Must be at least 2 characters.'
         });
     }
-    
+
     next();
 };

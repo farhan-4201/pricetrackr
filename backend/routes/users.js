@@ -1,8 +1,8 @@
-const express = require("express");
-const User = require("../models/user");
-const rateLimit = require("express-rate-limit");
-const { authenticate, generateToken } = require("../middleware/auth");
-const { validateRegistration, validateLogin, handleValidationErrors } = require("../middleware/validation");
+import express from "express";
+import User from "../models/user.js";
+import rateLimit from "express-rate-limit";
+import { authenticate, generateToken } from "../middleware/auth.js";
+import { validateRegistration, validateLogin, handleValidationErrors } from "../middleware/validation.js";
 
 const router = express.Router();
 
@@ -141,4 +141,4 @@ router.post("/logout", authenticate, (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-module.exports = router;
+export default router;

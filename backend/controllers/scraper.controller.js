@@ -1,10 +1,5 @@
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { scrapeAlibabaProducts } from '../scrapers/alibaba_scraper.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { scrapeDarazAPI } from '../scrapers/daraz_api_scraper.js';
+import { scrapePriceOye } from '../scrapers/priceoye.js';
 
 // Helper function to parse price strings
 function parsePrice(priceStr) {
@@ -24,95 +19,75 @@ function parsePrice(priceStr) {
 
 class ScraperController {
     async scrapeDaraz(query) {
-        return new Promise((resolve, reject) => {
-            const scraperPath = path.join(__dirname, '../scrapers/daraz_scraper.py');
-            console.log('Executing scraper:', scraperPath);
-
-            const pythonProcess = spawn('python', [scraperPath, query]);
-            let dataString = '';
-            let errorString = '';
-
-            pythonProcess.stdout.on('data', (data) => {
-                dataString += data.toString();
-                console.log('Raw scraper output:', data.toString());
-            });
-
-            pythonProcess.stderr.on('data', (data) => {
-                errorString += data.toString();
-                console.error('Scraper error:', data.toString());
-            });
-
-            pythonProcess.on('close', (code) => {
-                console.log('Scraper process exited with code:', code);
-
-                if (code !== 0) {
-                    return reject(new Error(`Scraper failed with error: ${errorString}`));
-                }
-
-                try {
-                    const rawResults = JSON.parse(dataString);
-                    // Handle the new format where it's a single product object
-                    if (rawResults.error) {
-                        return reject(new Error(rawResults.message || rawResults.error));
-                    }
-
-                    // Convert to array format
-                    const product = {
-                        name: rawResults.name || '',
-                        price: parsePrice(rawResults.currentPrice),
-                        url: rawResults.url || '',
-                        imageUrl: rawResults.imageUrl || null,
-                        marketplace: 'Daraz'
-                    };
-
-                    resolve({ products: [product] });
-                } catch (error) {
-                    console.error('Failed to parse scraper output:', error, 'Raw data:', dataString);
-                    reject(new Error('Failed to parse scraper output'));
-                }
-            });
-        });
-    }
-
-    async scrapeAlibaba(query) {
         try {
-            const results = await scrapeAlibabaProducts(query);
-            const formattedProducts = results.products.map(product => ({
-                name: product.name || product['Product Name'] || '',
-                price: parsePrice(product.price || product['Price']),
-                url: product.url || product['Product Link'] || '',
-                imageUrl: product.imageUrl || product['Image Link'] || null,
-                marketplace: 'Alibaba',
-                company: product.company || product['Company'] || null,
-                rating: product.rating || product['Rating'] || null,
-                moq: product.moq || product['MOQ'] || null
+            console.log('Starting Daraz scraping for query:', query);
+            const darazProducts = await scrapeDarazAPI(query);
+
+            const formattedProducts = darazProducts.map(product => ({
+                name: product.title || '',
+                price: parsePrice(product.priceShow),
+                url: product.link || '',
+                imageUrl: product.image || null,
+                marketplace: 'Daraz'
             }));
+
+            console.log(`Daraz scraping completed. Found ${formattedProducts.length} products`);
             return { products: formattedProducts };
         } catch (error) {
-            console.error('Alibaba scraping failed:', error);
+            console.error('Daraz scraping failed:', error);
+            throw error;
+        }
+    }
+
+    async scrapePriceOye(query) {
+        try {
+            console.log('Starting PriceOye scraping for query:', query);
+            const priceoyeProducts = await scrapePriceOye(query, 10); // Get up to 10 products
+
+            const formattedProducts = priceoyeProducts.map(product => ({
+                name: product.title || '',
+                price: parsePrice(product.price),
+                url: product.link || '',
+                imageUrl: null, // PriceOye scraper doesn't extract images
+                marketplace: 'PriceOye'
+            }));
+
+            console.log(`PriceOye scraping completed. Found ${formattedProducts.length} products`);
+            return { products: formattedProducts };
+        } catch (error) {
+            console.error('PriceOye scraping failed:', error);
             throw error;
         }
     }
 
     async scrapeAll(query) {
-        const [daraz, alibaba] = await Promise.allSettled([
+        console.log('Starting concurrent scraping for both Daraz and PriceOye...');
+
+        // Scrape both platforms concurrently using Promise.allSettled for fault tolerance
+        const [darazResult, priceoyeResult] = await Promise.allSettled([
             this.scrapeDaraz(query),
-            this.scrapeAlibaba(query)
+            this.scrapePriceOye(query)
         ]);
 
         const allProducts = [];
-        if (daraz.status === 'fulfilled') {
-            allProducts.push(...daraz.value.products);
+
+        // Handle Daraz results
+        if (darazResult.status === 'fulfilled') {
+            allProducts.push(...darazResult.value.products);
+            console.log(`✅ Daraz: ${darazResult.value.products.length} products collected`);
         } else {
-            console.error('Daraz scraping failed:', daraz.reason);
+            console.error('❌ Daraz scraping failed:', darazResult.reason?.message || darazResult.reason);
         }
 
-        if (alibaba.status === 'fulfilled') {
-            allProducts.push(...alibaba.value.products);
+        // Handle PriceOye results
+        if (priceoyeResult.status === 'fulfilled') {
+            allProducts.push(...priceoyeResult.value.products);
+            console.log(`✅ PriceOye: ${priceoyeResult.value.products.length} products collected`);
         } else {
-            console.error('Alibaba scraping failed:', alibaba.reason);
+            console.error('❌ PriceOye scraping failed:', priceoyeResult.reason?.message || priceoyeResult.reason);
         }
 
+        console.log(`📊 Total products collected: ${allProducts.length}`);
         return { products: allProducts, total: allProducts.length };
     }
 }

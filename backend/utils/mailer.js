@@ -19,4 +19,4 @@ const sendMail = async (to, subject, text) => {
   console.log("Mail sent to:", to);
 };
 
-module.exports = sendMail;
+export default sendMail;
