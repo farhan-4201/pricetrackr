@@ -1,5 +1,4 @@
 import { toast } from "sonner";
-import axios from 'axios';
 
 interface Product {
   id: string;
@@ -323,6 +322,30 @@ export interface ScrapedProduct {
     company?: string;
 }
 
+export interface ScraperSources {
+    daraz: {
+        success: boolean;
+        count: number;
+        error?: string | null;
+    };
+    priceoye: {
+        success: boolean;
+        count: number;
+        error?: string | null;
+    };
+}
+
+// Backend response interface
+interface SearchResponse {
+    success: boolean;
+    query: string;
+    products: ScrapedProduct[];
+    total: number;
+    sources: ScraperSources;
+    timestamp: string;
+    cached: boolean;
+}
+
 export const productsAPI = {
   // Get all products for current user
   getProducts: async () => {
@@ -379,41 +402,87 @@ export const productsAPI = {
     return apiClient.post('/products/scrape/daraz', { query: product_name });
   },
 
-// Updated scrape endpoint for Daraz
+  // Updated scrape endpoint for Daraz
   searchDarazProducts: async (query: string): Promise<ScrapedProduct[]> => {
     try {
+        console.log('[API] Calling Daraz scraper with query:', query);
+        
         const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape/daraz', {
             query
         });
 
+        console.log('[API] Daraz response received:', response);
+
         if (!response || !response.products) {
-            throw new Error('Invalid response format');
+            throw new Error('Invalid Daraz response format');
         }
 
         return response.products || [];
     } catch (error) {
-        console.error('API Error:', error);
-        throw new Error('Failed to fetch products from Daraz');
+        console.error('[API] Daraz API Error:', error);
+        throw new Error(`Failed to fetch products from Daraz: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-},
+  },
 
-// Search with both scrapers
-searchAllMarketsProducts: async (query: string): Promise<ScrapedProduct[]> => {
+  // FIXED: Search with both scrapers - main search function
+  searchAllMarketsProducts: async (query: string): Promise<ScrapedProduct[]> => {
     try {
-        const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape', {
+        console.log('[API] Starting search for:', query);
+        
+        const response = await apiClient.post<SearchResponse>('/products/scrape', {
             query: query
         });
-        
-        if (!response || !response.products) {
+
+        console.log("[API] Raw response received:", response);
+        console.log("[API] Response type:", typeof response);
+        console.log("[API] Response.success:", response?.success);
+        console.log("[API] Response.products length:", response?.products?.length);
+
+        // Validate response structure
+        if (!response) {
+            console.error('[API] No response received from server');
+            throw new Error('No response from server');
+        }
+
+        if (typeof response !== 'object') {
+            console.error('[API] Response is not an object:', response);
             throw new Error('Invalid response format');
         }
+
+        if (!response.success) {
+            console.error('[API] Server returned failure:', response);
+            throw new Error(`Server returned failure: ${JSON.stringify(response)}`);
+        }
+
+        if (!response.products) {
+            console.error('[API] No products field in response:', response);
+            throw new Error('No products in response');
+        }
+
+        if (!Array.isArray(response.products)) {
+            console.error('[API] Products is not an array:', typeof response.products, response.products);
+            throw new Error('Products field is not an array');
+        }
+
+        console.log(`[API] Successfully validated response with ${response.products.length} products`);
         
-        return response.products || [];
+        if (response.products.length > 0) {
+            console.log(`[API] First product sample:`, response.products[0]);
+        }
+        
+        return response.products;
+
     } catch (error) {
-        console.error('API Error:', error);
-        throw new Error('Failed to fetch products from marketplaces');
+        console.error('[API] searchAllMarketsProducts failed:', error);
+        
+        // Properly propagate the error instead of returning empty array
+        if (error instanceof Error) {
+            throw new Error(`Search failed: ${error.message}`);
+        } else {
+            throw new Error('Unknown search error occurred');
+        }
     }
-},
+  },
 };
 
 // Notifications API functions

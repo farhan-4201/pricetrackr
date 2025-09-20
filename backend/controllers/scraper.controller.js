@@ -1,97 +1,102 @@
-import { scrapeDarazAPI } from '../scrapers/daraz_api_scraper.js';
-import { scrapePriceOye } from '../scrapers/priceoye.js';
+// controllers/scraperController.js
 
-// Helper function to parse price strings
-function parsePrice(priceStr) {
-    if (!priceStr || typeof priceStr !== 'string') return null;
+import darazScraper from "../scrapers/daraz_api_scraper.js";
+import priceOyeScraper from "../scrapers/priceoye_api_scraper.js";
 
-    // Clean the price string
-    const cleanPrice = priceStr.replace(/[^\d.,]/g, '').replace(',', '');
-
-    // Try to extract number
-    const match = cleanPrice.match(/(\d+(?:\.\d{2})?)/);
-    if (match) {
-        return parseFloat(match[1]);
-    }
-
-    return null;
+/**
+ * Normalize marketplace values to match schema enum
+ */
+function normalizeMarketplace(marketplace) {
+  if (!marketplace) return null;
+  const value = marketplace.toLowerCase();
+  if (value === "daraz") return "Daraz";
+  if (value === "priceoye") return "PriceOye";
+  return marketplace;
 }
 
-class ScraperController {
-    async scrapeDaraz(query) {
-        try {
-            console.log('Starting Daraz scraping for query:', query);
-            const darazProducts = await scrapeDarazAPI(query);
-
-            const formattedProducts = darazProducts.map(product => ({
-                name: product.title || '',
-                price: parsePrice(product.priceShow),
-                url: product.link || '',
-                imageUrl: product.image || null,
-                marketplace: 'Daraz'
-            }));
-
-            console.log(`Daraz scraping completed. Found ${formattedProducts.length} products`);
-            return { products: formattedProducts };
-        } catch (error) {
-            console.error('Daraz scraping failed:', error);
-            throw error;
-        }
+export const scrapeAll = async (req, res) => {
+  try {
+    const query = req.query.q;
+    if (!query) {
+      return res.status(400).json({ success: false, message: "Query is required" });
     }
 
-    async scrapePriceOye(query) {
-        try {
-            console.log('Starting PriceOye scraping for query:', query);
-            const priceoyeProducts = await scrapePriceOye(query, 10); // Get up to 10 products
+    const results = {
+      success: true,
+      query,
+      products: [],
+      total: 0,
+      sources: {},
+      timestamp: new Date(),
+      cached: false
+    };
 
-            const formattedProducts = priceoyeProducts.map(product => ({
-                name: product.title || '',
-                price: parsePrice(product.price),
-                url: product.link || '',
-                imageUrl: null, // PriceOye scraper doesn't extract images
-                marketplace: 'PriceOye'
-            }));
+    // Run scrapers in parallel
+    const [darazRes, priceOyeRes] = await Promise.allSettled([
+      darazScraper(query),
+      priceOyeScraper(query)
+    ]);
 
-            console.log(`PriceOye scraping completed. Found ${formattedProducts.length} products`);
-            return { products: formattedProducts };
-        } catch (error) {
-            console.error('PriceOye scraping failed:', error);
-            throw error;
-        }
+    console.log(`[Controller] Daraz result:`, darazRes);
+    console.log(`[Controller] PriceOye result:`, priceOyeRes);
+
+    // Collect Daraz results
+    if (darazRes.status === "fulfilled" && darazRes.value.success) {
+      const products = darazRes.value.products.map(p => ({
+        ...p,
+        marketplace: normalizeMarketplace(p.marketplace)
+      }));
+      console.log(`[Controller] Daraz products after normalization:`, products);
+      results.products.push(...products);
+      results.sources.daraz = { success: true, count: products.length };
+      results.total += products.length;
+    } else {
+      console.log(`[Controller] Daraz failed:`, darazRes.reason?.message);
+      results.sources.daraz = { success: false, count: 0, error: darazRes.reason?.message };
     }
 
-    async scrapeAll(query) {
-        console.log('Starting concurrent scraping for both Daraz and PriceOye...');
-
-        // Scrape both platforms concurrently using Promise.allSettled for fault tolerance
-        const [darazResult, priceoyeResult] = await Promise.allSettled([
-            this.scrapeDaraz(query),
-            this.scrapePriceOye(query)
-        ]);
-
-        const allProducts = [];
-
-        // Handle Daraz results
-        if (darazResult.status === 'fulfilled') {
-            allProducts.push(...darazResult.value.products);
-            console.log(`✅ Daraz: ${darazResult.value.products.length} products collected`);
-        } else {
-            console.error('❌ Daraz scraping failed:', darazResult.reason?.message || darazResult.reason);
-        }
-
-        // Handle PriceOye results
-        if (priceoyeResult.status === 'fulfilled') {
-            allProducts.push(...priceoyeResult.value.products);
-            console.log(`✅ PriceOye: ${priceoyeResult.value.products.length} products collected`);
-        } else {
-            console.error('❌ PriceOye scraping failed:', priceoyeResult.reason?.message || priceoyeResult.reason);
-        }
-
-        console.log(`📊 Total products collected: ${allProducts.length}`);
-        return { products: allProducts, total: allProducts.length };
+    // Collect PriceOye results
+    if (priceOyeRes.status === "fulfilled" && priceOyeRes.value.success) {
+      const products = priceOyeRes.value.products.map(p => ({
+        ...p,
+        marketplace: normalizeMarketplace(p.marketplace)
+      }));
+      console.log(`[Controller] PriceOye products after normalization:`, products);
+      results.products.push(...products);
+      results.sources.priceoye = { success: true, count: products.length };
+      results.total += products.length;
+    } else {
+      console.log(`[Controller] PriceOye failed:`, priceOyeRes.reason?.message);
+      results.sources.priceoye = { success: false, count: 0, error: priceOyeRes.reason?.message };
     }
-}
 
-const scraperController = new ScraperController();
+    console.log(`[Controller] Final results:`, results);
 
-export default scraperController;
+    return res.json(results);
+  } catch (err) {
+    console.error("Scraper error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Individual scraper functions for routes
+export const scrapeDaraz = async (query) => {
+  try {
+    const result = await darazScraper(query);
+    return result;
+  } catch (error) {
+    return { success: false, products: [] };
+  }
+};
+
+export const scrapePriceOye = async (query) => {
+  try {
+    const result = await priceOyeScraper(query);
+    return result;
+  } catch (error) {
+    return { success: false, products: [] };
+  }
+};
+
+// Default export for compatibility with routes
+export default { scrapeDaraz, scrapePriceOye };
