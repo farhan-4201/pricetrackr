@@ -70,6 +70,7 @@ export default function SignUp() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="text"
+            name="fullName"
             placeholder="Full Name"
             value={fullName}
             required
@@ -79,6 +80,7 @@ export default function SignUp() {
           <div>
             <Input
               type="tel"
+              name="contactNumber"
               placeholder="Contact Number (10-15 characters)"
               value={contactNumber}
               required
@@ -96,6 +98,7 @@ export default function SignUp() {
           </div>
           <Input
             type="email"
+            name="emailAddress"
             placeholder="Email Address"
             value={emailAddress}
             required
@@ -104,6 +107,7 @@ export default function SignUp() {
           />
           <Input
             type="password"
+            name="password"
             placeholder="Password"
             value={password}
             required

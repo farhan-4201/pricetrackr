@@ -51,6 +51,7 @@ export default function SignIn() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="email"
+            name="emailAddress"
             placeholder="Email Address"
             value={emailAddress}
             required
@@ -59,6 +60,7 @@ export default function SignIn() {
           />
           <Input
             type="password"
+            name="password"
             placeholder="Password"
             value={password}
             required

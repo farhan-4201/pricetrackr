@@ -6,6 +6,17 @@ import SearchResult from "../models/search_result.js";
 import { scrapingRateLimiter } from "../middleware/rateLimiter.js";
 import { validateSearch } from "../middleware/validation.js";
 
+/**
+ * Normalize marketplace values to match schema enum
+ */
+function normalizeMarketplace(marketplace) {
+  if (!marketplace) return null;
+  const value = marketplace.toLowerCase();
+  if (value === "daraz") return "Daraz";
+  if (value === "priceoye") return "PriceOye";
+  return marketplace;
+}
+
 const router = express.Router();
 
 // --- Product Schema ---
@@ -325,7 +336,7 @@ router.post("/scrape", scrapingRateLimiter, validateSearch, async (req, res) => 
           price: p.price,
           url: p.url,
           imageUrl: p.imageUrl,
-          marketplace: p.marketplace
+          marketplace: normalizeMarketplace(p.marketplace)
         })),
         searchedAt: new Date(),
         resultCount: filteredProducts.length

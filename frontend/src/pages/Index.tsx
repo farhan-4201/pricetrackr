@@ -198,6 +198,7 @@ export const Index = () => {
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Input
               type="text"
+              name="productSearch"
               placeholder="Search for products (e.g., iPhone 14 Pro Max)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
