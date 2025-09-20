@@ -1,8 +1,8 @@
 import { chromium } from 'playwright';
 
-// Extract company name from product title
-function extractCompany(title) {
-  if (!title) return null;
+// Helper function to extract company name from product title (synchronized with Daraz)
+function extractCompany(productName) {
+  if (!productName) return null;
 
   // Common brand patterns - you can expand this list
   const brandPatterns = [
@@ -20,14 +20,14 @@ function extractCompany(title) {
 
   // Try to match against known brand patterns
   for (const pattern of brandPatterns) {
-    const match = title.match(pattern);
+    const match = productName.match(pattern);
     if (match) {
       return match[1];
     }
   }
 
   // Fallback: extract first word as potential brand
-  const firstWord = title.split(' ')[0];
+  const firstWord = productName.split(' ')[0];
 
   // Return first word if it looks like a brand (starts with capital letter)
   if (firstWord && /^[A-Z]/.test(firstWord)) {
@@ -37,12 +37,13 @@ function extractCompany(title) {
   return null;
 }
 
-// Clean and parse price
-function parsePrice(priceText) {
-  if (!priceText) return null;
+// Helper function to extract numeric price from price string (synchronized with Daraz)
+function extractPrice(priceString) {
+  if (!priceString) return null;
 
   // Remove "Rs.", spaces, and commas, but keep the numbers
-  const cleanPrice = priceText
+  // Handle formats like "Rs. 74,999" or "Rs.74999"
+  const cleanPrice = priceString
     .replace(/Rs\.?\s*/i, '') // Remove "Rs." or "Rs"
     .replace(/,/g, '') // Remove commas
     .trim();
@@ -95,7 +96,7 @@ async function priceOyeScraper(query) {
     console.log("Search page loaded, extracting products...");
 
     // Extract product data from search results
-    const products = await page.evaluate(() => {
+    const rawProducts = await page.evaluate(() => {
       const productElements = document.querySelectorAll('.product-card, .product-item, .product, .card, .item, [class*="product-"], article');
       const results = [];
 
@@ -129,9 +130,21 @@ async function priceOyeScraper(query) {
             }
           }
 
-          // Extract price
-          const priceElement = element.querySelector('.price, .current-price, .price-current, [class*="price"]');
-          const priceText = priceElement?.textContent?.trim();
+          // Extract price with multiple selectors
+          const priceSelectors = [
+            '.price', '.current-price', '.price-current', 
+            '[class*="price"]', '.cost', '.amount'
+          ];
+          
+          let priceText = null;
+          for (const selector of priceSelectors) {
+            const priceElement = element.querySelector(selector);
+            const price = priceElement?.textContent?.trim();
+            if (price && price.match(/Rs\.?\s*\d/i)) {
+              priceText = price;
+              break;
+            }
+          }
 
           // Extract image
           const imgElement = element.querySelector('img');
@@ -156,16 +169,23 @@ async function priceOyeScraper(query) {
           }
 
           // Extract rating (if available)
-          const ratingElement = element.querySelector('.rating, .stars, [class*="rating"], [class*="star"]');
+          const ratingSelectors = [
+            '.rating', '.stars', '[class*="rating"]', 
+            '[class*="star"]', '.review-score'
+          ];
+          
           let rating = null;
-
-          if (ratingElement) {
-            const ratingText = ratingElement.textContent || ratingElement.getAttribute('data-rating');
-            const ratingMatch = ratingText?.match(/(\d+\.?\d*)/);
-            if (ratingMatch) {
-              const val = parseFloat(ratingMatch[1]);
-              if (val >= 0 && val <= 5) {
-                rating = val;
+          for (const selector of ratingSelectors) {
+            const ratingElement = element.querySelector(selector);
+            if (ratingElement) {
+              const ratingText = ratingElement.textContent || ratingElement.getAttribute('data-rating');
+              const ratingMatch = ratingText?.match(/(\d+\.?\d*)/);
+              if (ratingMatch) {
+                const val = parseFloat(ratingMatch[1]);
+                if (val >= 0 && val <= 5) {
+                  rating = val;
+                  break;
+                }
               }
             }
           }
@@ -173,11 +193,11 @@ async function priceOyeScraper(query) {
           // Only add if we have essential data
           if (title && priceText && title.length > 5) {
             results.push({
-              title: title,
-              priceText: priceText,
-              imageUrl: imageUrl,
+              name: title,
+              priceShow: priceText,
+              image: imageUrl,
               productUrl: productUrl,
-              rating: rating
+              ratingScore: rating
             });
           }
         } catch (error) {
@@ -189,50 +209,71 @@ async function priceOyeScraper(query) {
       return results;
     });
 
-    console.log(`Found ${products.length} raw products`);
+    console.log(`Found ${rawProducts.length} raw products`);
 
-    // Transform to match Daraz format and remove duplicates
-    const seenTitles = new Set();
-    const transformedProducts = products
-      .filter(item => {
-        // Filter out invalid items and duplicates
-        if (!item.title || !item.priceText) return false;
+    // Check response shape with better error handling
+    if (!rawProducts || !Array.isArray(rawProducts)) {
+      console.log("Invalid response format from PriceOye scraping");
+      return { success: false, products: [] };
+    }
 
-        // Check for duplicates
-        if (seenTitles.has(item.title.toLowerCase())) return false;
-        seenTitles.add(item.title.toLowerCase());
+    // Debug: Log the structure of the first item to understand available fields
+    if (rawProducts.length > 0) {
+      console.log("First item structure:", Object.keys(rawProducts[0]));
+      console.log("First item sample:", rawProducts[0]);
+    }
 
-        return true;
-      })
-      .map((item) => ({
-        name: item.title,
-        price: parsePrice(item.priceText),
-        marketplace: "priceoye",
-        imageUrl: item.imageUrl,
-        url: item.productUrl,
-        rating: item.rating,
-        company: extractCompany(item.title)
-      }))
-      .filter(product => {
-        // Additional filtering for quality
-        return product.price !== null &&
-               product.name.length > 15 && // Ensure meaningful product names
-               !product.name.toLowerCase().includes('search result') &&
-               product.company !== 'Search' &&
-               product.company !== 'Result';
+    // Transform data to match Daraz format exactly
+    const products = rawProducts
+      .filter(item => item.name && item.priceShow) // Filter out invalid items (same as Daraz)
+      .map((item) => {
+        // Handle URL field (same logic as Daraz)
+        let productUrl = null;
+        const urlFields = ['productUrl', 'itemUrl', 'url', 'link', 'href', 'productLink', 'itemLink'];
+
+        for (const field of urlFields) {
+          if (item[field]) {
+            // Handle both absolute and relative URLs
+            if (item[field].startsWith('http')) {
+              productUrl = item[field];
+            } else if (item[field].startsWith('//')) {
+              productUrl = `https:${item[field]}`;
+            } else if (item[field].startsWith('/')) {
+              productUrl = `https://priceoye.pk${item[field]}`;
+            } else {
+              productUrl = `https://priceoye.pk/${item[field]}`;
+            }
+            break;
+          }
+        }
+
+        // Use productUrl from the item directly if available
+        if (!productUrl && item.productUrl) {
+          productUrl = item.productUrl;
+        }
+
+        return {
+          name: item.name,
+          price: extractPrice(item.priceShow),
+          marketplace: "priceoye",
+          imageUrl: item.image,
+          url: productUrl,
+          rating: item.ratingScore || null,
+          company: extractCompany(item.name)
+        };
       });
 
-    console.log(`Successfully parsed ${transformedProducts.length} valid products`);
+    console.log(`Successfully parsed ${products.length} valid products`);
 
     await browser.close();
-    return { success: true, products: transformedProducts };
+    return { success: true, products: products };
 
   } catch (error) {
     console.error("PriceOye Scraper Error:", error.message);
 
-    // Provide more specific error handling
+    // Provide more specific error handling (synchronized with Daraz)
     if (error.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
-      console.error("DNS resolution failed - check internet connection");
+      console.error("DNS resolution failed - check internet connection and DNS settings");
     } else if (error.message.includes('net::ERR_CONNECTION_REFUSED')) {
       console.error("Connection refused - website may be down or blocking requests");
     } else if (error.message.includes('TimeoutError')) {

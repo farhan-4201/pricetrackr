@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Loader2 } from "lucide-react";
 import { productsAPI } from "@/lib/api";
 import { toast } from "sonner";
-
+import { ProductResults } from "@/components/ProductResults";
 import { ScrapedProduct } from "@/lib/api";
 
 // Error Boundary Component with proper types
@@ -217,49 +217,30 @@ export const SearchDashboard = () => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    console.log('=== SEARCH STARTED ===');
     setLoading(true);
     setError("");
     setScrapedProducts([]);
 
     try {
-        console.log(`[Frontend] Searching for: ${searchQuery}`);
-        
-        const response = await productsAPI.searchAllMarketsProducts(searchQuery);
-        
-        console.log(`[Frontend] Raw API response:`, response);
-        console.log(`[Frontend] Response type:`, typeof response);
-        console.log(`[Frontend] Is array:`, Array.isArray(response));
-        console.log(`[Frontend] Response length:`, response?.length);
-        
-        if (Array.isArray(response) && response.length > 0) {
-          console.log(`[Frontend] Setting ${response.length} products`);
-          console.log(`[Frontend] First product:`, response[0]);
-          
-          // Direct state update without setTimeout
-          setScrapedProducts(response);
-          triggerUpdate(); // Force re-render
-          console.log(`[Frontend] Products state updated immediately`);
-          
-        } else if (Array.isArray(response) && response.length === 0) {
-          console.log(`[Frontend] Empty array received`);
-          setScrapedProducts([]);
-          setError("No products found for this search");
-        } else {
-          console.error(`[Frontend] Response is not an array:`, response);
-          setError("Invalid response format - expected array");
-          toast.error("Invalid response format");
-        }
+      // Call the fixed productsAPI which always returns an array!
+      const products = await productsAPI.searchAllMarketsProducts(searchQuery);
 
+      if (Array.isArray(products) && products.length > 0) {
+        setScrapedProducts(products);
+        triggerUpdate();
+      } else if (Array.isArray(products) && products.length === 0) {
+        setScrapedProducts([]);
+        setError("No products found for this search");
+      } else {
+        setError("Invalid response format - expected array");
+        toast.error("Invalid response format");
+      }
     } catch (err: unknown) {
-        const error = err as Error;
-        console.error(`[Frontend] Search error:`, err);
-        setError(error.message || "Failed to search for product");
-        toast.error(error.message || "Failed to search for product");
+      const error = err as Error;
+      setError(error.message || "Failed to search for product");
+      toast.error(error.message || "Failed to search for product");
     } finally {
-        setLoading(false);
-        console.log('=== SEARCH ENDED ===');
-        console.log(`[Frontend] Final state - products count: ${scrapedProducts.length}`);
+      setLoading(false);
     }
   };
 
@@ -271,11 +252,8 @@ export const SearchDashboard = () => {
 
   // Debug effect to monitor state changes
   useEffect(() => {
-    console.log('[Frontend] Products state changed:', scrapedProducts.length);
+    // Optionally log or handle scrapedProducts change
   }, [scrapedProducts]);
-
-  // Debug log for render
-  console.log('[Frontend] Rendering with products:', scrapedProducts.length, 'loading:', loading, 'error:', error);
 
   return (
     <ErrorBoundary>
@@ -358,15 +336,12 @@ export const SearchDashboard = () => {
                 Found {scrapedProducts.length} products
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {scrapedProducts.map((product, index) => {
-                  console.log(`Rendering ProductCard ${index}:`, product.name);
-                  return (
-                    <ProductCard 
-                      key={`${product.marketplace}-${product.name}-${index}`} 
-                      product={product} 
-                    />
-                  );
-                })}
+                {scrapedProducts.map((product, index) => (
+                  <ProductCard 
+                    key={`${product.marketplace}-${product.name}-${index}`} 
+                    product={product} 
+                  />
+                ))}
               </div>
             </ErrorBoundary>
           )}

@@ -1,4 +1,4 @@
-import { scrapePriceOye } from './priceoye.js';
+import priceOyeScraper from './priceoye_api_scraper.js';
 
-const results = await scrapePriceOye('HP core i7 laptop');
+const results = await priceOyeScraper('HP core i7 laptop');
 console.log(results);

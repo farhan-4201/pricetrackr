@@ -470,6 +470,7 @@ export const productsAPI = {
             console.log(`[API] First product sample:`, response.products[0]);
         }
         
+        // ==== FIX: always return an array ====
         return response.products;
 
     } catch (error) {
