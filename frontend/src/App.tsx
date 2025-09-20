@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Index } from "./pages/Index";
+import Index from "./pages/Index";
 import { Features } from "./pages/Features";
 import { Pricing } from "./pages/Pricing";
 import { About } from "./pages/About";

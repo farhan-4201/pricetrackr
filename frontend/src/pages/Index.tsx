@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/api";
+import { ProductResults } from "@/components/ProductResults";
 import {
   Search,
   TrendingDown,
@@ -25,6 +26,29 @@ export const Index = () => {
   const [error, setError] = useState('');
   const [searchLimitExceeded, setSearchLimitExceeded] = useState(false);
   const searchSectionRef = useRef(null);
+
+  // Unified search state to prevent too many requests
+  const [searchState, setSearchState] = useState({
+    currentQuery: '',
+    lastSearchedQuery: '',
+    isSearching: false,
+    lastSearchTime: 0,
+    searchCount: 0,
+    rateLimited: false,
+    rateLimitRetryAfter: 0
+  });
+
+  // Error type interface
+  interface ApiError {
+    message: string;
+    status?: number;
+    retryAfter?: number;
+  }
+
+  // Debounce timeout refs
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const rateLimitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const DEBOUNCE_DELAY = 1500; // Increased to 1.5 seconds to be more conservative
 
   const MAX_SEARCHES = 5;
   const STORAGE_KEY = 'pricetracker_search_count';
@@ -51,6 +75,72 @@ export const Index = () => {
     }
   }, []);
 
+  // Debounced search to prevent excessive API calls
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchTerm.trim() && searchTerm.trim() !== searchState.lastSearchedQuery) {
+      setSearchState(prev => ({
+        ...prev,
+        currentQuery: searchTerm.trim(),
+        isSearching: true
+      }));
+
+      searchTimeoutRef.current = setTimeout(() => {
+        performSearch(searchTerm.trim());
+      }, DEBOUNCE_DELAY);
+    } else if (!searchTerm.trim()) {
+      setSearchState(prev => ({
+        ...prev,
+        isSearching: false
+      }));
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
+  // Unified search function to synchronize both search sections
+  const performSearch = async (query: string) => {
+    const currentTime = Date.now();
+    const minimumInterval = 10000; // Increased from 5s to 10s to be more conservative
+
+    if (currentTime - searchState.lastSearchTime < minimumInterval) {
+      console.log(`[SearchSync] Search blocked - ${Math.ceil((minimumInterval - (currentTime - searchState.lastSearchTime)) / 1000)}s remaining`);
+      return;
+    }
+
+    // Double-check rate limiting just before search
+    const timeSinceLastSearch = currentTime - searchState.lastSearchTime;
+    if (timeSinceLastSearch < minimumInterval) {
+      console.log('[SearchSync] Duplicate call blocked by double-check');
+      return;
+    }
+
+    setSearchState(prev => ({
+      ...prev,
+      lastSearchTime: currentTime,
+      searchCount: prev.searchCount + 1
+    }));
+
+    console.log(`[SearchSync] APPROVED search #${searchState.searchCount + 1} for: "${query}" at ${new Date(currentTime).toISOString()}`);
+
+    // Update shared search state for synchronization AFTER approval
+    setSearchState(prev => ({
+      ...prev,
+      lastSearchedQuery: query,
+      currentQuery: query
+    }));
+
+    // Return to prevent any further calls
+    return;
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
@@ -75,13 +165,39 @@ export const Index = () => {
         setSearchLimitExceeded((currentCount + 1) >= MAX_SEARCHES);
       }
     } catch (err) {
-      setError(err.message);
+      const error = err as ApiError;
+      if (error.status === 429) {
+        const retryAfter = error.retryAfter || 1758354973; // Unix timestamp
+        const retryDate = new Date(retryAfter * 1000);
+        setSearchState(prev => ({
+          ...prev,
+          rateLimited: true,
+          rateLimitRetryAfter: retryAfter
+        }));
+
+        // Clear rate limit after the retry time
+        if (rateLimitTimeoutRef.current) {
+          clearTimeout(rateLimitTimeoutRef.current);
+        }
+        rateLimitTimeoutRef.current = setTimeout(() => {
+          setSearchState(prev => ({
+            ...prev,
+            rateLimited: false,
+            rateLimitRetryAfter: 0
+          }));
+        }, Math.max(0, retryAfter * 1000 - Date.now()));
+
+        setError(`Rate limited. Try again after ${retryDate.toLocaleTimeString()} (${Math.ceil((retryAfter * 1000 - Date.now()) / 1000 / 60)} minutes)`);
+      } else {
+        setError(error.message || 'Search failed');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navigateToSearch = () => {
     if (location.pathname === "/") {
@@ -122,11 +238,11 @@ export const Index = () => {
       <section className="pt-32 pb-20 px-4 relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 opacity-30">
-          <div 
+          <div
             className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl"
             style={{ background: "radial-gradient(circle, rgba(34, 211, 238, 0.1) 0%, transparent 70%)" }}
           />
-          <div 
+          <div
             className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl"
             style={{ background: "radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 70%)" }}
           />
@@ -186,15 +302,44 @@ export const Index = () => {
       </section>
 
       {/* Product Search Section */}
-      <section ref={searchSectionRef} className="py-20 px-4 bg-gradient-to-b from-slate-950 to-slate-900">
+      <section ref={searchSectionRef} id="search" className="py-20 px-4 bg-gradient-to-b from-slate-950 to-slate-900">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             Search & Discover Products
           </h2>
           <p className="text-slate-300 mb-8">
-            Search for products on Daraz and get real-time pricing and information instantly. {!isAuthenticated && `(${MAX_SEARCHES - (parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10))} searches remaining)`}
+            Search for products on Daraz, PriceOye and get real-time pricing and information instantly.
           </p>
 
+          {/* Search Limit Status */}
+          {!isAuthenticated && (
+            <div className="bg-slate-800/30 rounded-lg p-4 mb-6 border border-slate-600/50">
+              <div className="flex items-center justify-center space-x-6 text-sm">
+                <div className="text-center">
+                  <div className="text-purple-400 font-semibold">Searches Used</div>
+                  <div className="text-white text-lg">{parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-green-400 font-semibold">Remaining</div>
+                  <div className="text-white text-lg">{MAX_SEARCHES - parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-orange-400 font-semibold">Rate Limited</div>
+                  <div className={`text-sm ${searchState.rateLimited ? 'text-red-400' : 'text-green-400'}`}>
+                    {searchState.rateLimited ? 'Yes' : 'No'}
+                  </div>
+                </div>
+              </div>
+              {searchLimitExceeded && (
+                <div className="mt-3 text-center">
+                  <p className="text-red-400 text-sm">Search limit reached!</p>
+                  <p className="text-slate-400 text-xs">Sign up for unlimited searches</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Original Search Form */}
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Input
               type="text"
@@ -218,10 +363,11 @@ export const Index = () => {
             </Button>
           </form>
 
+          {/* Display Original Search Results */}
           {error && <p className="text-red-400 mb-4">{error}</p>}
 
           {scrapedProduct && (
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600 max-w-2xl mx-auto">
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600 max-w-2xl mx-auto mb-12">
               <h3 className="text-2xl font-bold text-white mb-4">{scrapedProduct.name}</h3>
               {scrapedProduct.imageUrl && (
                 <img
@@ -254,6 +400,72 @@ export const Index = () => {
               )}
             </div>
           )}
+
+          <div className="border-t border-slate-600 pt-12">
+            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              Multi-Marketplace Search (New Feature)
+            </h3>
+            <p className="text-slate-300 mb-8 text-sm">
+              Search across multiple marketplaces like Daraz, PriceOye and more simultaneously
+            </p>
+
+            {/* Search Statistics & Mapping */}
+            {searchState.lastSearchedQuery && (
+              <div className="bg-slate-800/30 rounded-lg p-4 mb-6 border border-slate-600/50">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="text-center">
+                    <div className="text-cyan-400 font-semibold">Query</div>
+                    <div className="text-slate-300 truncate">"{searchState.currentQuery}"</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-green-400 font-semibold">Marketplace</div>
+                    <div className="text-slate-300">All Marketplaces</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-purple-400 font-semibold">Search #</div>
+                    <div className="text-slate-300">{searchState.searchCount}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-orange-400 font-semibold">Status</div>
+                    <div className={`text-sm ${searchState.isSearching ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {searchState.isSearching ? 'Searching...' : 'Ready'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* New ProductResults Component */}
+            <div className="max-w-6xl mx-auto">
+              <ProductResults
+                query={searchState.lastSearchedQuery}
+                onProductSelect={(product) => {
+                  console.log('Product selected from multi-search:', product);
+                  // You can add navigation to product detail page here
+                }}
+              />
+            </div>
+
+            {/* Mapping Info for Results */}
+            {searchTerm.trim() && (
+              <div className="mt-8 p-4 bg-blue-900/20 rounded-lg border border-blue-500/30">
+                <h4 className="text-lg font-semibold text-blue-400 mb-3">Search Mapping</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-slate-800/50 rounded p-3">
+                    <div className="text-slate-300 font-medium">Your Query</div>
+                    <div className="text-white">"{searchTerm}"</div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-3">
+                    <div className="text-slate-300 font-medium">Mapped To</div>
+                    <div className="text-white">Daraz Marketplace Search</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-400">
+                  Results are filtered to show only relevant products from Daraz (max 5 per query)
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -271,7 +483,7 @@ export const Index = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div 
+              <div
                 key={index}
                 className="p-6 rounded-xl border transition-all duration-500 hover:scale-105 hover:border-cyan-400/30 group"
                 style={{
@@ -282,7 +494,7 @@ export const Index = () => {
                   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)"
                 }}
               >
-                <div 
+                <div
                   className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
                   style={{
                     background: "rgba(34, 211, 238, 0.1)",
@@ -307,7 +519,7 @@ export const Index = () => {
       {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl text-center">
-          <div 
+          <div
             className="p-12 rounded-2xl border relative overflow-hidden"
             style={{
               background: "rgba(255, 255, 255, 0.05)",
@@ -318,7 +530,7 @@ export const Index = () => {
             }}
           >
             {/* Background Animation */}
-            <div 
+            <div
               className="absolute inset-0 opacity-20"
               style={{
                 background: "linear-gradient(45deg, transparent, rgba(34, 211, 238, 0.1), transparent, rgba(34, 197, 94, 0.1), transparent)"
@@ -348,10 +560,10 @@ export const Index = () => {
                 >
                   Get Started Free
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outline"
-                  size="lg" 
+                  size="lg"
                   className="px-12 py-4 text-lg font-medium transition-all duration-300"
                   style={{
                     background: "rgba(255, 255, 255, 0.05)",
@@ -384,3 +596,5 @@ export const Index = () => {
     </div>
   );
 };
+
+export default Index;
