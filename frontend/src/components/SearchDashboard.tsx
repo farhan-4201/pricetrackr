@@ -278,7 +278,6 @@ export const SearchDashboard = () => {
                 placeholder="Search for products across Daraz, PriceOye, and more (e.g., iPhone 14 Pro Max)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
                 className="pl-10 pr-4 py-6 text-lg border-gray-600 bg-gray-800 text-white placeholder-gray-400"
               />
             </div>
@@ -330,21 +329,7 @@ export const SearchDashboard = () => {
           )}
 
           {/* Product Results */}
-          {scrapedProducts.length > 0 && !loading && (
-            <ErrorBoundary>
-              <div className="mb-4 text-white">
-                Found {scrapedProducts.length} products
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {scrapedProducts.map((product, index) => (
-                  <ProductCard 
-                    key={`${product.marketplace}-${product.name}-${index}`} 
-                    product={product} 
-                  />
-                ))}
-              </div>
-            </ErrorBoundary>
-          )}
+          <ProductResults query={searchQuery} />
 
           {/* Empty State */}
           {scrapedProducts.length === 0 && !loading && !error && searchQuery && (

@@ -7,6 +7,7 @@ import connectDB from "./db.js";
 import usersRouter from "./routes/users.js";
 import productsRouter from "./routes/products.js";
 import notificationsRouter from "./routes/notifications.js";
+import { createWebSocketServer } from './websocket.js';
 import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
 
 // Winston logging setup
@@ -32,6 +33,12 @@ if (process.env.NODE_ENV !== 'production') {
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  logger.info(`Server started on port ${PORT}`);
+});
+
+createWebSocketServer(server);
 
 connectDB();
 
@@ -100,8 +107,3 @@ app.use((err, req, res, next) => {
 
 // Make logger available globally
 global.logger = logger;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  logger.info(`Server started on port ${PORT}`);
-});

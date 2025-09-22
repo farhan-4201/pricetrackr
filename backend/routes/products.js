@@ -1,7 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import { authenticate as auth } from "../middleware/auth.js";
-import scraperController from "../controllers/scraper.controller.js";
+import { scrapeAll } from "../controllers/scraper.controller.js";
 import SearchResult from "../models/search_result.js";
 import { scrapingRateLimiter } from "../middleware/rateLimiter.js";
 import { validateSearch } from "../middleware/validation.js";
@@ -293,62 +293,6 @@ router.post("/scrape/priceoye", scrapingRateLimiter, validateSearch, async (req,
 });
 
 // Combined scrape
-router.post("/scrape", scrapingRateLimiter, validateSearch, async (req, res) => {
-  try {
-    const { query, limit = 20 } = req.body;
-    console.log(`[${new Date().toISOString()}] Combined scrape: ${query} from IP: ${req.ip}`);
-
-    const darazTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Daraz request timeout")), 30000));
-    const priceoyeTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("PriceOye request timeout")), 45000));
-
-    const [darazResult, priceoyeResult] = await Promise.allSettled([
-      Promise.race([scraperController.scrapeDaraz(query), darazTimeout]),
-      Promise.race([scraperController.scrapePriceOye(query), priceoyeTimeout])
-    ]);
-
-    const allProducts = [];
-    const sources = { daraz: { success: false, count: 0, error: null }, priceoye: { success: false, count: 0, error: null } };
-
-    if (darazResult.status === "fulfilled") {
-      allProducts.push(...(darazResult.value.products || []));
-      sources.daraz = { success: true, count: darazResult.value.products.length };
-    } else {
-      sources.daraz.error = darazResult.reason?.message || "Unknown error";
-    }
-
-    if (priceoyeResult.status === "fulfilled") {
-      allProducts.push(...(priceoyeResult.value.products || []));
-      sources.priceoye = { success: true, count: priceoyeResult.value.products.length };
-    } else {
-      sources.priceoye.error = priceoyeResult.reason?.message || "Unknown error";
-    }
-
-    const filteredProducts = allProducts
-      .filter(p => p.price && typeof p.price === "number" && p.price > 0)
-      .sort((a, b) => a.price - b.price)
-      .slice(0, limit);
-
-    if (filteredProducts.length > 0) {
-      const searchResult = new SearchResult({
-        query,
-        results: filteredProducts.map(p => ({
-          name: p.name,
-          price: p.price,
-          url: p.url,
-          imageUrl: p.imageUrl,
-          marketplace: normalizeMarketplace(p.marketplace)
-        })),
-        searchedAt: new Date(),
-        resultCount: filteredProducts.length
-      });
-      await searchResult.save();
-    }
-
-    res.json({ success: true, query, products: filteredProducts, total: filteredProducts.length, sources, timestamp: new Date().toISOString(), cached: false });
-  } catch (error) {
-    console.error(`Combined scrape error: ${error.message}`);
-    res.status(500).json({ success: false, error: error.message || "Internal server error", query: req.body.query, products: [], total: 0, timestamp: new Date().toISOString() });
-  }
-});
+router.post("/scrape", scrapingRateLimiter, validateSearch, scrapeAll);
 
 export default router;

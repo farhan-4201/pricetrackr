@@ -16,7 +16,7 @@ function normalizeMarketplace(marketplace) {
 
 export const scrapeAll = async (req, res) => {
   try {
-    const query = req.query.q;
+    const { query } = req.body;
     if (!query) {
       return res.status(400).json({ success: false, message: "Query is required" });
     }
@@ -69,6 +69,20 @@ export const scrapeAll = async (req, res) => {
       console.log(`[Controller] PriceOye failed:`, priceOyeRes.reason?.message);
       results.sources.priceoye = { success: false, count: 0, error: priceOyeRes.reason?.message };
     }
+
+    results.products.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+
+    // Find the best product from each marketplace
+    const bestProducts = {};
+    for (const product of results.products) {
+      if (!bestProducts[product.marketplace] || (product.relevanceScore || 0) > (bestProducts[product.marketplace].relevanceScore || 0)) {
+        bestProducts[product.marketplace] = product;
+      }
+    }
+
+    const finalProducts = Object.values(bestProducts);
+    results.products = finalProducts;
+    results.total = finalProducts.length;
 
     console.log(`[Controller] Final results:`, results);
 

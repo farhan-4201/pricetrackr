@@ -55,6 +55,13 @@ async function darazScraper(query) {
     const products = data.mods.listItems
       .filter(item => item.name && item.priceShow) // Filter out invalid items
       .map((item) => {
+        const relevanceScore = calculateRelevance(item.name, query);
+        console.log(`"${item.name}" - Relevance Score: ${relevanceScore}`);
+
+        if (relevanceScore === 0) {
+          return null; // Exclude irrelevant items
+        }
+
         // Try different possible URL field names
         let productUrl = null;
         const urlFields = ['productUrl', 'itemUrl', 'url', 'link', 'href', 'productLink', 'itemLink'];
@@ -81,18 +88,23 @@ async function darazScraper(query) {
           productUrl = `https://www.daraz.pk/products/i${item.productId}.html`;
         }
 
+        const validImageUrl = validateAndFixImageUrl(item.image);
+
         return {
           name: item.name,
           price: extractPrice(item.priceShow),
           marketplace: "daraz",
-          imageUrl: item.image,
+          imageUrl: validImageUrl,
           url: productUrl,
           rating: item.ratingScore || null,
-          company: extractCompany(item.name)
+          company: extractCompany(item.name),
+          relevanceScore
         };
-      });
+      })
+      .filter(Boolean) // Remove null entries
+      .sort((a, b) => b.relevanceScore - a.relevanceScore); // Sort by relevance
 
-    console.log(`Successfully parsed ${products.length} valid products`);
+    console.log(`Successfully parsed and filtered ${products.length} valid products`);
     return { success: true, products: products };
   } catch (error) {
     console.error("Daraz API Scraper Error:", error.message);
@@ -126,6 +138,53 @@ function extractPrice(priceString) {
   const price = parseInt(cleanPrice);
 
   return isNaN(price) ? null : price;
+}
+
+// Helper function to calculate relevance score
+function calculateRelevance(productName, query) {
+  if (!productName || !query) return 0;
+
+  const productLower = productName.toLowerCase();
+  const queryLower = query.toLowerCase();
+  const queryWords = queryLower.split(/\s+/).filter(word => word.length > 1);
+
+  let score = 0;
+  let matchedWords = 0;
+
+  // Prioritize model numbers
+  const queryNumbers = query.match(/\d+/g) || [];
+  const productNumbers = productName.match(/\d+/g) || [];
+
+  if (queryNumbers.length > 0) {
+    const allNumbersMatch = queryNumbers.every(num => productNumbers.includes(num));
+    if (allNumbersMatch) {
+      score += 5; // Strong bonus for matching all model numbers
+    } else {
+      // If numbers are present but don't match, it's likely irrelevant
+      return 0;
+    }
+  }
+
+  // Check for word matches
+  for (const word of queryWords) {
+    if (productLower.includes(word)) {
+      matchedWords++;
+      // Bonus for exact word matches
+      const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+      if (wordRegex.test(productName)) {
+        score += 2;
+      } else {
+        score += 1;
+      }
+    }
+  }
+
+  // Require at least half of the words to match
+  if (queryWords.length > 0 && matchedWords / queryWords.length < 0.5) {
+    return 0;
+  }
+
+  return score;
 }
 
 // Helper function to extract company name from product title
@@ -163,6 +222,69 @@ function extractCompany(productName) {
   }
 
   return null;
+}
+
+// Enhanced image URL validation with balanced filtering
+function validateAndFixImageUrl(imageUrl) {
+  if (!imageUrl) return null;
+  
+  // Remove obvious non-product images
+  if (imageUrl.startsWith('data:') || 
+      imageUrl.includes('placeholder') || 
+      imageUrl.includes('loading') ||
+      imageUrl.includes('no-image')) {
+    return null;
+  }
+  
+  // Exclude common UI elements but be less restrictive
+  const excludePatterns = [
+    'stars.svg',
+    'rating-star',
+    'icons/',
+    'sprite',
+    'logo-',
+    'button-'
+  ];
+  
+  const shouldExclude = excludePatterns.some(pattern => 
+    imageUrl.toLowerCase().includes(pattern)
+  );
+  
+  if (shouldExclude) {
+    return null;
+  }
+  
+  // Accept if it has valid extension OR looks like a product image
+  const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  const hasValidExtension = validExtensions.some(ext => imageUrl.toLowerCase().includes(ext));
+  
+  const hasProductKeywords = imageUrl.includes('product') || 
+                             imageUrl.includes('mobile') || 
+                             imageUrl.includes('laptop') ||
+                             imageUrl.includes('item') ||
+                             imageUrl.includes('apple') ||
+                             imageUrl.includes('iphone') ||
+                             imageUrl.includes('samsung');
+  
+  // Accept CDN images or images with product keywords
+  const isCDNImage = imageUrl.includes('static.') || 
+                     imageUrl.includes('cdn.') ||
+                     imageUrl.includes('images/');
+  
+  if (!hasValidExtension && !hasProductKeywords && !isCDNImage) {
+    return null;
+  }
+  
+  // Fix relative URLs
+  if (imageUrl.startsWith('//')) {
+    return 'https:' + imageUrl;
+  } else if (imageUrl.startsWith('/')) {
+    return 'https://www.daraz.pk' + imageUrl;
+  } else if (!imageUrl.startsWith('http')) {
+    return 'https://www.daraz.pk/' + imageUrl;
+  }
+  
+  return imageUrl;
 }
 
 export default darazScraper;

@@ -8,15 +8,13 @@ interface ProductCardProps {
     id: string;
     name: string;
     image: string;
-    prices: {
-      amazon?: number;
-      ebay?: number;
-      aliexpress?: number;
-    };
+    price: number;
+    marketplace: string;
     rating: number;
     reviews: number;
     priceChange: number;
     category: string;
+    url: string;
   };
 }
 
@@ -24,13 +22,12 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   
-  const lowestPrice = Math.min(...Object.values(product.prices).filter(Boolean));
-  const priceEntries = Object.entries(product.prices).filter(([_, price]) => price);
-
-  const marketplaceColors = {
+  const marketplaceColors: { [key: string]: string } = {
+    daraz: "#22d3ee",
+    priceoye: "#ff4081",
     amazon: "#fb923c",
-    ebay: "#3b82f6", 
-    aliexpress: "#ef4444"
+    ebay: "#3b82f6",
+    aliexpress: "#ef4444",
   };
 
   return (
@@ -127,12 +124,12 @@ export const ProductCard = ({ product }: ProductCardProps) => {
 
       {/* Product Info */}
       <div className="space-y-4 relative z-10">
-        <h3 className="font-semibold text-lg leading-tight text-white group-hover:text-cyan-400 transition-colors duration-300">
+        <h3 className="font-semibold text-lg leading-tight text-white group-hover:text-cyan-400 transition-colors duration-300 truncate">
           {product.name}
         </h3>
         
-        {/* Rating */}
-        <div className="flex items-center space-x-2">
+        {/* Rating - Removed based on user feedback */}
+        {/* <div className="flex items-center space-x-2">
           <div className="flex items-center space-x-1">
             {Array.from({ length: 5 }).map((_, i) => (
               <Star 
@@ -148,53 +145,24 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           <span className="text-sm text-slate-400">
             {product.rating} ({product.reviews.toLocaleString()})
           </span>
-        </div>
+        </div> */}
 
         {/* Price Section */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-baseline justify-between">
             <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-              ${lowestPrice?.toFixed(2)}
+              {product.price ? `Rs. ${product.price.toLocaleString()}` : "N/A"}
             </span>
-            <span className="text-sm text-slate-500">Best Price</span>
-          </div>
-          
-          {/* Marketplace Prices */}
-          <div className="space-y-2">
-            {priceEntries.map(([marketplace, price]) => (
-              <div 
-                key={marketplace} 
-                className="flex items-center justify-between text-sm p-2 rounded-lg transition-all duration-300 hover:bg-white/5"
+            <div className="flex items-center space-x-2">
+              <div
+                className="w-3 h-3 rounded-full"
                 style={{
-                  background: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid rgba(255, 255, 255, 0.05)"
+                  background: marketplaceColors[product.marketplace.toLowerCase()],
+                  boxShadow: `0 0 10px ${marketplaceColors[product.marketplace.toLowerCase()]}30`
                 }}
-              >
-                <div className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ 
-                      background: marketplaceColors[marketplace as keyof typeof marketplaceColors],
-                      boxShadow: `0 0 10px ${marketplaceColors[marketplace as keyof typeof marketplaceColors]}30`
-                    }}
-                  />
-                  <span className="capitalize text-slate-300">{marketplace}</span>
-                  {price === lowestPrice && (
-                    <Badge 
-                      className="text-xs px-1 py-0"
-                      style={{
-                        background: "rgba(34, 197, 94, 0.2)",
-                        color: "#22c55e",
-                        border: "1px solid rgba(34, 197, 94, 0.3)"
-                      }}
-                    >
-                      Best
-                    </Badge>
-                  )}
-                </div>
-                <span className="font-medium text-white">${price?.toFixed(2)}</span>
-              </div>
-            ))}
+              />
+              <span className="capitalize text-sm text-slate-400">{product.marketplace}</span>
+            </div>
           </div>
         </div>
 
@@ -207,24 +175,13 @@ export const ProductCard = ({ product }: ProductCardProps) => {
               border: "none",
               boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)"
             }}
-          >
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            Add to Watchlist
-          </Button>
-          
-          <Button 
-            className="transition-all duration-300 hover:scale-110"
-            style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              color: "#22d3ee",
-              width: "44px",
-              height: "44px",
-              padding: "0"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(product.url, '_blank');
             }}
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Go to Product
           </Button>
         </div>
       </div>

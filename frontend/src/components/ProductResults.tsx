@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
-import { productsAPI, ScrapedProduct } from "@/lib/api";
+import { ScrapedProduct } from "@/lib/api";
+import { socket, connectWebSocket, sendWebSocketMessage, closeWebSocket } from "@/lib/websocket";
 import { toast } from "sonner";
+import { ProductCard } from "./ProductCard";
 
 interface ProductResultsProps {
   query: string;
@@ -32,116 +34,48 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
+  const [noResultsMarketplaces, setNoResultsMarketplaces] = useState<string[]>([]);
 
-  // Fetch products when query changes (ONLY if it hasn't been searched)
   useEffect(() => {
     const trimmedQuery = query?.trim();
     if (trimmedQuery && trimmedQuery !== lastSearchedQuery) {
-      console.log(`[ProductResults] Will search for new query: "${trimmedQuery}"`);
-      // Add small delay to allow unified search coordinator to set the flag
-      const timer = setTimeout(() => {
-        if (trimmedQuery) {
-          fetchProducts(trimmedQuery);
+      setLoading(true);
+      setError("");
+      setProducts([]);
+      setLastSearchedQuery(trimmedQuery);
+
+      connectWebSocket(
+        () => {
+          console.log('WebSocket connected');
+          sendWebSocketMessage(trimmedQuery);
+        },
+        (data) => {
+          setLoading(false);
+          if (data.products) {
+            setProducts(data.products);
+          }
+        },
+        (error) => {
+          setLoading(false);
+          setError('WebSocket error');
+          console.error('WebSocket error:', error);
+        },
+        () => {
+          console.log('WebSocket disconnected');
         }
-      }, 100);
-      return () => clearTimeout(timer);
+      );
     } else if (!trimmedQuery) {
       setProducts([]);
       setError("");
     }
-  }, [query, lastSearchedQuery]);
 
-  const fetchProducts = async (searchQuery: string) => {
-    console.log('[ProductResults] Starting search for:', searchQuery);
-    setLoading(true);
-    setError("");
-    setLastSearchedQuery(searchQuery);
-
-    try {
-      const response = await productsAPI.searchAllMarketsProducts(searchQuery);
-      console.log('[ProductResults] API response received:', response);
-
-        if (Array.isArray(response) && response.length > 0) {
-            // Add relevance scoring and sorting for all marketplace products
-            const queryLower = searchQuery.toLowerCase().trim();
-            const scoredProducts: ProductWithScore[] = response.map((product: ScrapedProduct): ProductWithScore => {
-                const productName = product.name?.toLowerCase() || '';
-                const productCompany = product.company?.toLowerCase() || '';
-
-                // Calculate relevance score based on:
-                // 1. Full product name match (highest priority)
-                // 2. Partial word matches
-                // 3. Company name match
-
-                let score = 0;
-
-                // Priority 1: Full query match in product name
-                if (productName.includes(queryLower)) {
-                    score += 100;
-                }
-
-                // Priority 2: Individual words from query match
-                const queryWords = queryLower.split(' ');
-                for (const word of queryWords) {
-                    if (word.length > 2) { // Ignore short words
-                        if (productName.includes(word)) {
-                            score += 50;
-                        }
-                        if (productCompany.includes(word)) {
-                            score += 20;
-                        }
-                    }
-                }
-
-                // Priority 3: Brand matching (for tech products)
-                if (queryLower.includes('iphone') || queryLower.includes('apple')) {
-                    if (productName.includes('iphone') || productName.includes('apple')) {
-                        score += 40;
-                    }
-                    if (productCompany && (productCompany.includes('apple') || productName.includes('apple'))) {
-                        score += 20;
-                    }
-                }
-
-                return { ...product, relevanceScore: score };
-            });
-
-            // Sort by relevance score (highest first) and limit to 4 most relevant
-            scoredProducts.sort((a, b) => b.relevanceScore! - a.relevanceScore!);
-            const relevantProducts = scoredProducts.slice(0, 4);
-
-            // Only show products with some relevance score (avoid irrelevant results)
-            const finalResults = relevantProducts.filter(product => product.relevanceScore! > 0);
-
-            if (finalResults.length > 0) {
-                setProducts(finalResults);
-                console.log(`[ProductResults] Found ${finalResults.length} relevant products`);
-            } else {
-                setProducts([]);
-                setError("No products found matching your search");
-            }
-        } else {
-            setProducts([]);
-            setError("No products found for this search");
-        }
-    } catch (err) {
-      const error = err as APIError;
-      console.error('[ProductResults] Search failed:', error);
-
-      if (error.status === 429) {
-        const retryAfter = error.retryAfter || 1758354973; // Unix timestamp
-        const retryDate = new Date(retryAfter * 1000);
-        setError(`Rate limited! Please wait until ${retryDate.toLocaleTimeString()} before trying again (${Math.ceil((retryAfter * 1000 - Date.now()) / 1000 / 60)} minutes remaining)`);
-      } else {
-        setError(error.message || "Failed to search for products");
+    return () => {
+      // Only close the WebSocket if the component is unmounting
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        closeWebSocket();
       }
-
-      setProducts([]);
-      toast.error(error.status === 429 ? "Rate limited by server. Please try again later." : "Failed to search for products");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+  }, [query, lastSearchedQuery]);
 
 
 
@@ -171,7 +105,7 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
           <p className="text-red-400 text-lg font-medium mb-2">Search Failed</p>
           <p className="text-gray-400 text-center">{error}</p>
           <Button
-            onClick={() => query && fetchProducts(query)}
+            onClick={() => query && sendWebSocketMessage(query)}
             variant="outline"
             className="mt-4 border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
             disabled={loading}
@@ -195,6 +129,11 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
       {/* Results */}
       {products.length > 0 && !loading && (
         <div>
+          {noResultsMarketplaces.length > 0 && (
+            <div className="mb-4 p-4 border border-yellow-400/30 bg-yellow-400/10 rounded-lg text-yellow-300 text-sm">
+              <p>No relevant products found on: <strong>{noResultsMarketplaces.join(', ')}</strong>. Results from other marketplaces are shown below.</p>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-white">
               Search Results for "{lastSearchedQuery}"
@@ -206,94 +145,21 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product, index) => (
-              <div
+              <ProductCard
                 key={`${product.marketplace}-${product.name}-${index}`}
-                className="group relative bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:border-cyan-400/30 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                onClick={() => onProductSelect?.(product)}
-              >
-                {/* Product Image */}
-                <div className="relative mb-4 overflow-hidden rounded-lg">
-                  <img
-                    src={product.imageUrl || "https://via.placeholder.com/300x200?text=No+Image"}
-                    alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = "https://via.placeholder.com/300x200?text=No+Image";
-                    }}
-                  />
-                  <Badge
-                    className="absolute top-2 left-2 font-medium text-xs"
-                    style={{
-                      background: `${marketplaceColors[product.marketplace.toLowerCase()] || "#22d3ee"}20`,
-                      border: `1px solid ${marketplaceColors[product.marketplace.toLowerCase()] || "#22d3ee"}`,
-                      color: marketplaceColors[product.marketplace.toLowerCase()] || "#22d3ee",
-                    }}
-                  >
-                    {product.marketplace}
-                  </Badge>
-                </div>
-
-                {/* Product Info */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg text-white group-hover:text-cyan-400 transition-colors duration-300 line-clamp-2">
-                    {product.name}
-                  </h4>
-
-                  {/* Price */}
-                  {product.price !== null && product.price !== undefined && product.price > 0 ? (
-                    <div className="flex items-center">
-                      <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
-                        Rs. {typeof product.price === 'number' ? product.price.toLocaleString() : product.price}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <span className="text-sm text-gray-400">Price not available</span>
-                    </div>
-                  )}
-
-                  {/* Rating */}
-                  {product.rating && (
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-yellow-400">⭐</span>
-                        <span className="text-sm text-gray-300">{product.rating}/5</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Marketplace indicator */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: marketplaceColors[product.marketplace.toLowerCase()] || "#22d3ee" }}
-                      />
-                      <span className="text-sm text-gray-400 capitalize">{product.marketplace}</span>
-                    </div>
-
-                    {product.company && (
-                      <span className="text-xs text-gray-500">{product.company}</span>
-                    )}
-                  </div>
-
-                  {/* Go to Product Button */}
-                  <Button
-                    className="w-full mt-3 font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(product.url, '_blank');
-                    }}
-                    style={{
-                      background: "linear-gradient(135deg, #22d3ee, #22c55e)",
-                      border: "none",
-                    }}
-                  >
-                    Go to Product
-                  </Button>
-                </div>
-              </div>
+                product={{
+                  id: `${product.marketplace}-${product.name}-${index}`,
+                  name: product.name,
+                  image: product.imageUrl,
+                  price: product.price as number,
+                  marketplace: product.marketplace,
+                  rating: Number(product.rating) || 0,
+                  reviews: 0, // Not available from scraper
+                  priceChange: 0, // Not available from scraper
+                  category: product.company || "General",
+                  url: product.url,
+                }}
+              />
             ))}
           </div>
         </div>
