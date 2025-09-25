@@ -2,6 +2,7 @@
 
 import darazScraper from "../scrapers/daraz_api_scraper.js";
 import priceOyeScraper from "../scrapers/priceoye_api_scraper.js";
+import telemartScraper from "../scrapers/telemart_scraper.js";
 
 /**
  * Normalize marketplace values to match schema enum
@@ -11,6 +12,7 @@ function normalizeMarketplace(marketplace) {
   const value = marketplace.toLowerCase();
   if (value === "daraz") return "Daraz";
   if (value === "priceoye") return "PriceOye";
+  if (value === "telemart") return "Telemart";
   return marketplace;
 }
 
@@ -32,13 +34,15 @@ export const scrapeAll = async (req, res) => {
     };
 
     // Run scrapers in parallel
-    const [darazRes, priceOyeRes] = await Promise.allSettled([
+    const [darazRes, priceOyeRes, telemartRes] = await Promise.allSettled([
       darazScraper(query),
-      priceOyeScraper(query)
+      priceOyeScraper(query),
+      telemartScraper(query)
     ]);
 
     console.log(`[Controller] Daraz result:`, darazRes);
     console.log(`[Controller] PriceOye result:`, priceOyeRes);
+    console.log(`[Controller] Telemart result:`, telemartRes);
 
     // Collect Daraz results
     if (darazRes.status === "fulfilled" && darazRes.value.success) {
@@ -70,17 +74,39 @@ export const scrapeAll = async (req, res) => {
       results.sources.priceoye = { success: false, count: 0, error: priceOyeRes.reason?.message };
     }
 
+    // Collect Telemart results
+    if (telemartRes.status === "fulfilled" && telemartRes.value.success) {
+      const products = telemartRes.value.products.map(p => ({
+        ...p,
+        marketplace: normalizeMarketplace(p.marketplace)
+      }));
+      console.log(`[Controller] Telemart products after normalization:`, products);
+      results.products.push(...products);
+      results.sources.telemart = { success: true, count: products.length };
+      results.total += products.length;
+    } else {
+      console.log(`[Controller] Telemart failed:`, telemartRes.reason?.message);
+      results.sources.telemart = { success: false, count: 0, error: telemartRes.reason?.message };
+    }
+
     results.products.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
-    // Find the best product from each marketplace
-    const bestProducts = {};
+    // Get the 2 best products from each marketplace
+    const bestProductsPerMarketplace = {};
     for (const product of results.products) {
-      if (!bestProducts[product.marketplace] || (product.relevanceScore || 0) > (bestProducts[product.marketplace].relevanceScore || 0)) {
-        bestProducts[product.marketplace] = product;
+      const marketplace = product.marketplace;
+      if (!bestProductsPerMarketplace[marketplace]) {
+        bestProductsPerMarketplace[marketplace] = [];
+      }
+
+      // Keep only top 2 products per marketplace
+      if (bestProductsPerMarketplace[marketplace].length < 2) {
+        bestProductsPerMarketplace[marketplace].push(product);
       }
     }
 
-    const finalProducts = Object.values(bestProducts);
+    // Flatten the grouped products back to array
+    const finalProducts = Object.values(bestProductsPerMarketplace).flat();
     results.products = finalProducts;
     results.total = finalProducts.length;
 

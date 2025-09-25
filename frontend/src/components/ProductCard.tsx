@@ -21,7 +21,7 @@ interface ProductCardProps {
 export const ProductCard = ({ product }: ProductCardProps) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const marketplaceColors: { [key: string]: string } = {
     daraz: "#22d3ee",
     priceoye: "#ff4081",
@@ -31,14 +31,15 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   };
 
   return (
-    <div 
-      className="rounded-xl p-6 border transition-all duration-500 hover:scale-[1.02] cursor-pointer group relative overflow-hidden"
+    <div
+      className="rounded-xl p-6 border transition-all duration-500 hover:scale-[1.02] cursor-pointer group relative overflow-hidden h-full flex flex-col"
       style={{
         background: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: "1px solid rgba(34, 211, 238, 0.1)",
-        boxShadow: isHovered ? "0 20px 40px rgba(34, 211, 238, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.3)"
+        boxShadow: isHovered ? "0 20px 40px rgba(34, 211, 238, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.3)",
+        minHeight: "400px" // Consistent minimum height
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
