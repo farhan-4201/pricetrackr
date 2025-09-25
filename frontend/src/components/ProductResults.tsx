@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
@@ -6,6 +6,8 @@ import { ScrapedProduct } from "@/lib/api";
 import { socket, connectWebSocket, sendWebSocketMessage, closeWebSocket } from "@/lib/websocket";
 import { toast } from "sonner";
 import { ProductCard } from "./ProductCard";
+import { MarketplaceComparisonChart } from "./MarketplaceComparisonChart";
+import ScrollReveal from 'scrollreveal';
 
 interface ProductResultsProps {
   query: string;
@@ -35,6 +37,7 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
   const [error, setError] = useState<string>("");
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [noResultsMarketplaces, setNoResultsMarketplaces] = useState<string[]>([]);
+  const productContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const trimmedQuery = query?.trim();
@@ -77,11 +80,33 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
     };
   }, [query, lastSearchedQuery]);
 
+  // Initialize ScrollReveal for products when they load
+  useEffect(() => {
+    if (products.length > 0 && productContainerRef.current) {
+      // Configure ScrollReveal
+      const sr = ScrollReveal({
+        duration: 800,
+        distance: '50px',
+        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        delay: 200,
+        viewFactor: 0.15
+      });
+
+      // Reveal product cards with stagger
+      sr.reveal(productContainerRef.current.querySelectorAll('.product-card'), {
+        interval: 150,
+        origin: 'bottom',
+        distance: '30px'
+      });
+    }
+  }, [products]);
+
 
 
   const marketplaceColors: Record<string, string> = {
     daraz: "#22d3ee",
     priceoye: "#ff4081",
+    telemart: "#10b981",
     alibaba: "#ff4081",
     amazon: "#ff9900",
     ebay: "#26a69a"
@@ -134,33 +159,109 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
               <p>No relevant products found on: <strong>{noResultsMarketplaces.join(', ')}</strong>. Results from other marketplaces are shown below.</p>
             </div>
           )}
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">
-              Search Results for "{lastSearchedQuery}"
-            </h3>
-            <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400">
-              {products.length} {products.length === 1 ? 'product' : 'products'} found
-            </Badge>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product, index) => (
-              <ProductCard
-                key={`${product.marketplace}-${product.name}-${index}`}
-                product={{
-                  id: `${product.marketplace}-${product.name}-${index}`,
-                  name: product.name,
-                  image: product.imageUrl,
-                  price: product.price as number,
-                  marketplace: product.marketplace,
-                  rating: Number(product.rating) || 0,
-                  reviews: 0, // Not available from scraper
-                  priceChange: 0, // Not available from scraper
-                  category: product.company || "General",
-                  url: product.url,
-                }}
-              />
-            ))}
+          <div className="mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+              <h3 className="text-xl font-semibold text-white">
+                Search Results for "{lastSearchedQuery}"
+              </h3>
+              {products.length > 0 && (
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-slate-400">Total Products</p>
+                      <p className="text-lg font-bold text-cyan-400">{products.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-400">Marketplaces</p>
+                      <p className="text-lg font-bold text-green-400">
+                        {new Set(products.map(p => p.marketplace)).size}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-400">Avg Price</p>
+                      <p className="text-lg font-bold text-yellow-400">
+                        Rs. {Math.round(products.reduce((sum, p) => sum + (p.price || 0), 0) / products.length).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-400">Price Range</p>
+                      <p className="text-lg font-bold text-purple-400">
+                        Rs. {Math.round(Math.min(...products.map(p => p.price || Infinity))).toLocaleString()} - {Math.round(Math.max(...products.map(p => p.price || 0))).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Group products by marketplace */}
+            <div ref={productContainerRef}>
+              {(() => {
+                const groupedProducts = products.reduce((acc, product) => {
+                  const marketplace = product.marketplace;
+                  if (!acc[marketplace]) {
+                    acc[marketplace] = [];
+                  }
+                  acc[marketplace].push(product);
+                  return acc;
+                }, {} as Record<string, ScrapedProduct[]>);
+
+                return Object.entries(groupedProducts).map(([marketplace, marketplaceProducts]) => (
+                  <div key={marketplace} className="mb-8">
+                    {/* Marketplace Section Heading */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-4 h-8 rounded-sm"
+                        style={{ backgroundColor: marketplaceColors[marketplace.toLowerCase()] }}
+                      />
+                      <h4 className="text-lg font-semibold text-white">
+                        {marketplace}
+                      </h4>
+                      <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400 ml-auto">
+                        {marketplaceProducts.length} {marketplaceProducts.length === 1 ? 'product' : 'products'}
+                      </Badge>
+                    </div>
+
+                    {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
+                      {marketplaceProducts.slice(0, 3).map((product, index) => (
+                        <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
+                          <ProductCard
+                            product={{
+                              id: `${product.marketplace}-${product.name}-${index}`,
+                              name: product.name,
+                              image: product.imageUrl,
+                              price: product.price as number,
+                              marketplace: product.marketplace,
+                              rating: Number(product.rating) || 0,
+                              reviews: 0, // Not available from scraper
+                              priceChange: 0, // Not available from scraper
+                              category: product.company || "General",
+                              url: product.url,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Show message if more products available */}
+                    {marketplaceProducts.length > 3 && (
+                      <div className="text-center mt-4">
+                        <p className="text-sm text-slate-400">
+                          Showing 3 of {marketplaceProducts.length} products from {marketplace}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Marketplace Price Comparison Chart */}
+            <div className="mt-12 mb-8">
+              <MarketplaceComparisonChart products={products} />
+            </div>
           </div>
         </div>
       )}

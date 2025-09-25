@@ -296,22 +296,6 @@ export const SearchDashboard = () => {
             </Button>
           </div>
 
-          {/* Enhanced Debug info - always show in development */}
-          <div className="mb-4 p-4 bg-gray-800 rounded-lg text-white text-sm">
-            <strong>Debug Info:</strong><br/>
-            Loading: {loading.toString()}<br/>
-            Error: {error || 'None'}<br/>
-            Products count: {scrapedProducts.length}<br/>
-            Search query: "{searchQuery}"<br/>
-            Force update counter: {forceUpdate}<br/>
-            <button 
-              onClick={triggerUpdate}
-              className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs"
-            >
-              Force Re-render
-            </button>
-          </div>
-
           {/* Loading State */}
           {loading && (
             <div className="text-center py-12">

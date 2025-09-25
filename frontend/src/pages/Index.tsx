@@ -235,7 +235,7 @@ export const Index = () => {
   return (
     <div style={{ background: '#020617' }}>
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
+      <section className="pt-32 pb-20 px-4 relative overflow-hidden" data-scroll-reveal-section>
         {/* Background Effects */}
         <div className="absolute inset-0 opacity-30">
           <div
@@ -470,9 +470,9 @@ export const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4" data-scroll-reveal-section>
         <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16" data-scroll-reveal-up>
             <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
               Powerful Features
             </h2>
@@ -481,7 +481,7 @@ export const Index = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8" data-scroll-reveal-stagger>
             {features.map((feature, index) => (
               <div
                 key={index}
@@ -517,10 +517,11 @@ export const Index = () => {
 
 
       {/* CTA Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4" data-scroll-reveal-section>
         <div className="container mx-auto max-w-4xl text-center">
           <div
             className="p-12 rounded-2xl border relative overflow-hidden"
+            data-scroll-reveal-up
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               backdropFilter: "blur(16px)",

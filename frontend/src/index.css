@@ -201,7 +201,7 @@ All colors MUST be HSL.
     position: relative;
     background: linear-gradient(var(--gradient-dark));
   }
-  
+
   .animated-border::before {
     content: '';
     position: absolute;
@@ -212,5 +212,14 @@ All colors MUST be HSL.
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: xor;
     -webkit-mask-composite: xor;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 }
