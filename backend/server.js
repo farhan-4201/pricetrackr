@@ -7,6 +7,7 @@ import connectDB from "./db.js";
 import usersRouter from "./routes/users.js";
 import productsRouter from "./routes/products.js";
 import notificationsRouter from "./routes/notifications.js";
+import watchlistRouter from "./routes/watchlist.js";
 import { createWebSocketServer } from './websocket.js';
 import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
 
@@ -78,6 +79,7 @@ app.use('/api/', (req, res, next) => {
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/notifications", notificationsRouter);
+app.use("/api/v1/watchlist", watchlistRouter);
 
 // Health check
 app.get("/api/health", (req, res) => {

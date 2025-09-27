@@ -42,6 +42,32 @@ interface UpdateProductInput {
   category?: string;
 }
 
+export interface WatchlistItem {
+  _id: string;
+  productId: string;
+  name: string;
+  image?: string;
+  marketplace: string;
+  category?: string;
+  currentPrice?: number;
+  url: string;
+  isTracking?: boolean;
+  addedAt: string;
+  lastUpdated: string;
+  notes?: string;
+}
+
+interface CreateWatchlistItemInput {
+  productId: string;
+  name: string;
+  image?: string;
+  marketplace: string;
+  category?: string;
+  currentPrice?: number;
+  url: string;
+  notes?: string;
+}
+
 interface AlertData {
   threshold: number;
   condition: 'above' | 'below';
@@ -521,5 +547,38 @@ export const notificationsAPI = {
   // Create notification
   createNotification: async (data: NotificationData) => {
     return authenticatedApiClient.post('/notifications', data);
+  },
+};
+
+// Watchlist API functions
+export const watchlistAPI = {
+  // Get all watchlist items for current user
+  getWatchlist: async (): Promise<WatchlistItem[]> => {
+    return authenticatedApiClient.get<WatchlistItem[]>('/watchlist');
+  },
+
+  // Add item to watchlist
+  addToWatchlist: async (itemData: CreateWatchlistItemInput): Promise<WatchlistItem> => {
+    return authenticatedApiClient.post<WatchlistItem>('/watchlist', itemData);
+  },
+
+  // Update watchlist item
+  updateWatchlistItem: async (itemId: string, updates: Partial<WatchlistItem>): Promise<WatchlistItem> => {
+    return authenticatedApiClient.put<WatchlistItem>(`/watchlist/${itemId}`, updates);
+  },
+
+  // Remove item from watchlist
+  removeFromWatchlist: async (itemId: string): Promise<{ message: string }> => {
+    return authenticatedApiClient.delete<{ message: string }>(`/watchlist/${itemId}`);
+  },
+
+  // Check if item is in watchlist
+  checkWatchlistStatus: async (productId: string): Promise<{ inWatchlist: boolean; item?: WatchlistItem }> => {
+    return authenticatedApiClient.get<{ inWatchlist: boolean; item?: WatchlistItem }>(`/watchlist/check/${productId}`);
+  },
+
+  // Get watchlist statistics
+  getWatchlistStats: async () => {
+    return authenticatedApiClient.get('/watchlist/stats');
   },
 };

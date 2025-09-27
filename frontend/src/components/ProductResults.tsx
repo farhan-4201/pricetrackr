@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
+import { Loader2, AlertCircle, ShoppingCart, RefreshCw, Wifi, Network } from "lucide-react";
 import { ScrapedProduct } from "@/lib/api";
 import { socket, connectWebSocket, sendWebSocketMessage, closeWebSocket } from "@/lib/websocket";
 import { toast } from "sonner";
 import { ProductCard } from "./ProductCard";
 import { MarketplaceComparisonChart } from "./MarketplaceComparisonChart";
+import { ProductGridSkeleton, ChartSkeleton } from "@/components/ui/skeleton";
 import ScrollReveal from 'scrollreveal';
 
 interface ProductResultsProps {
@@ -114,29 +115,91 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
 
   return (
     <div className={`w-full ${className}`}>
-      {/* Loading State */}
+      {/* Loading State - Skeleton */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="w-12 h-12 animate-spin text-cyan-400 mb-4" />
-          <p className="text-gray-300 text-lg">Searching for products...</p>
-          <p className="text-gray-400 text-sm mt-2">This may take a few seconds</p>
+        <div className="space-y-8">
+          {/* Simulate marketplace sections */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-4 h-8 rounded-sm bg-slate-700 animate-pulse" />
+              <div className="h-6 w-24 bg-slate-700 rounded animate-pulse" />
+            </div>
+            <ProductGridSkeleton count={6} />
+          </div>
+
+          {/* Chart skeleton */}
+          <div className="mt-12">
+            <ChartSkeleton />
+          </div>
         </div>
       )}
 
-      {/* Error State */}
+      {/* Enhanced Error State */}
       {error && !loading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-          <p className="text-red-400 text-lg font-medium mb-2">Search Failed</p>
-          <p className="text-gray-400 text-center">{error}</p>
-          <Button
-            onClick={() => query && sendWebSocketMessage(query)}
-            variant="outline"
-            className="mt-4 border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
-            disabled={loading}
-          >
-            Try Again
-          </Button>
+        <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="bg-red-900/20 border border-red-400/30 rounded-lg p-8 max-w-md w-full">
+            {/* Error Type Detection */}
+            {error.toLowerCase().includes('network') || error.toLowerCase().includes('websocket') ? (
+              <>
+                <Network className="w-12 h-12 text-red-400 mb-4 mx-auto" />
+                <h3 className="text-red-400 text-lg font-semibold mb-2 text-center">Connection Error</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  Unable to connect to the search service. Please check your internet connection.
+                </p>
+              </>
+            ) : error.toLowerCase().includes('timeout') || error.toLowerCase().includes('server') ? (
+              <>
+                <RefreshCw className="w-12 h-12 text-yellow-400 mb-4 mx-auto" />
+                <h3 className="text-yellow-400 text-lg font-semibold mb-2 text-center">Service Unavailable</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  The search service is temporarily unavailable. This usually resolves automatically.
+                </p>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4 mx-auto" />
+                <h3 className="text-red-400 text-lg font-semibold mb-2 text-center">Search Failed</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  An unexpected error occurred while searching for products.
+                </p>
+              </>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => query && sendWebSocketMessage(query)}
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                disabled={loading}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+
+              {error.toLowerCase().includes('network') && (
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                >
+                  <Wifi className="w-4 h-4 mr-2" />
+                  Check Connection
+                </Button>
+              )}
+            </div>
+
+            {/* Error Details (only in development) */}
+            {import.meta.env.DEV && (
+              <details className="mt-4 text-xs">
+                <summary className="text-slate-400 cursor-pointer hover:text-slate-300">
+                  Error Details
+                </summary>
+                <pre className="text-red-300 bg-slate-900/50 p-2 rounded mt-2 whitespace-pre-wrap">
+                  {error}
+                </pre>
+              </details>
+            )}
+          </div>
         </div>
       )}
 

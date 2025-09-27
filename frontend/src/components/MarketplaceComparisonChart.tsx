@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,6 +10,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { ScrapedProduct } from '@/lib/api';
+import { ChartSkeleton } from './ui/skeleton';
 
 ChartJS.register(
   CategoryScale,
@@ -29,6 +30,18 @@ export const MarketplaceComparisonChart: React.FC<MarketplaceComparisonChartProp
   products,
   className = ""
 }) => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Simulate loading delay for chart rendering
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, [products]);
+
+  // Show skeleton while loading
+  if (isLoading || products.length === 0) {
+    return <ChartSkeleton className={className} />;
+  }
   // Group products by marketplace and calculate average prices
   const marketplaceData = products.reduce((acc, product) => {
     const marketplace = product.marketplace;
