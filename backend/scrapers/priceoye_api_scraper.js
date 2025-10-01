@@ -149,13 +149,23 @@ export class PriceOyeScraper {
           let matchedWords = 0;
 
           for (const word of queryWords) {
-            if (productLower.includes(word)) {
+            // Also check for singular/plural forms simply by removing 's'
+            const singularWord = word.endsWith("s") ? word.slice(0, -1) : null;
+
+            if (
+              productLower.includes(word) ||
+              (singularWord && productLower.includes(singularWord))
+            ) {
               matchedWords++;
               score += 1;
             }
           }
 
-          if (queryWords.length > 0 && matchedWords / queryWords.length < 0.5) {
+          // Require at least half the words to match
+          if (
+            queryWords.length > 0 &&
+            matchedWords / queryWords.length < 0.5
+          ) {
             return 0;
           }
 

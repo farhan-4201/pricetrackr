@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from "express";
+import session from "express-session";
 import helmet from "helmet";
 import cors from "cors";
 import winston from "winston";
@@ -7,6 +8,8 @@ import connectDB from "./db.js";
 import usersRouter from "./routes/users.js";
 import productsRouter from "./routes/products.js";
 import notificationsRouter from "./routes/notifications.js";
+import watchlistRouter from "./routes/watchlist.js";
+import passport from "./middleware/googleAuth.js";
 import { createWebSocketServer } from './websocket.js';
 import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
 
@@ -54,9 +57,20 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS || "http://localhost:5173",
+  origin: process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:5174",
   credentials: true
 }));
+
+// Passport and session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -78,6 +92,7 @@ app.use('/api/', (req, res, next) => {
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/notifications", notificationsRouter);
+app.use("/api/v1/watchlist", watchlistRouter);
 
 // Health check
 app.get("/api/health", (req, res) => {

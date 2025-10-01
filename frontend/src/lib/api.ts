@@ -42,6 +42,32 @@ interface UpdateProductInput {
   category?: string;
 }
 
+export interface WatchlistItem {
+  _id: string;
+  productId: string;
+  name: string;
+  image?: string;
+  marketplace: string;
+  category?: string;
+  currentPrice?: number;
+  url: string;
+  isTracking?: boolean;
+  addedAt: string;
+  lastUpdated: string;
+  notes?: string;
+}
+
+interface CreateWatchlistItemInput {
+  productId: string;
+  name: string;
+  image?: string;
+  marketplace: string;
+  category?: string;
+  currentPrice?: number;
+  url: string;
+  notes?: string;
+}
+
 interface AlertData {
   threshold: number;
   condition: 'above' | 'below';
@@ -402,11 +428,21 @@ export const productsAPI = {
     return apiClient.post('/products/scrape/daraz', { query: product_name });
   },
 
+  // Get saved search results
+  getSearchResults: async (query?: string, limit?: number, page?: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+    if (limit) params.set('limit', limit.toString());
+    if (page) params.set('page', page.toString());
+    const queryString = params.toString();
+    return apiClient.get(`/products/search-results${queryString ? '?' + queryString : ''}`);
+  },
+
   // Updated scrape endpoint for Daraz
   searchDarazProducts: async (query: string): Promise<ScrapedProduct[]> => {
     try {
         console.log('[API] Calling Daraz scraper with query:', query);
-        
+
         const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape/daraz', {
             query
         });
@@ -521,5 +557,38 @@ export const notificationsAPI = {
   // Create notification
   createNotification: async (data: NotificationData) => {
     return authenticatedApiClient.post('/notifications', data);
+  },
+};
+
+// Watchlist API functions
+export const watchlistAPI = {
+  // Get all watchlist items for current user
+  getWatchlist: async (): Promise<WatchlistItem[]> => {
+    return authenticatedApiClient.get<WatchlistItem[]>('/watchlist');
+  },
+
+  // Add item to watchlist
+  addToWatchlist: async (itemData: CreateWatchlistItemInput): Promise<WatchlistItem> => {
+    return authenticatedApiClient.post<WatchlistItem>('/watchlist', itemData);
+  },
+
+  // Update watchlist item
+  updateWatchlistItem: async (itemId: string, updates: Partial<WatchlistItem>): Promise<WatchlistItem> => {
+    return authenticatedApiClient.put<WatchlistItem>(`/watchlist/${itemId}`, updates);
+  },
+
+  // Remove item from watchlist
+  removeFromWatchlist: async (itemId: string): Promise<{ message: string }> => {
+    return authenticatedApiClient.delete<{ message: string }>(`/watchlist/${itemId}`);
+  },
+
+  // Check if item is in watchlist
+  checkWatchlistStatus: async (productId: string): Promise<{ inWatchlist: boolean; item?: WatchlistItem }> => {
+    return authenticatedApiClient.get<{ inWatchlist: boolean; item?: WatchlistItem }>(`/watchlist/check/${productId}`);
+  },
+
+  // Get watchlist statistics
+  getWatchlistStats: async () => {
+    return authenticatedApiClient.get('/watchlist/stats');
   },
 };

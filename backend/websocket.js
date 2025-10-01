@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { scrapeAll } from './controllers/scraper.controller.js';
+import { scrapeAndStream } from './controllers/scraper.controller.js';
 
 export const createWebSocketServer = (server) => {
   const wss = new WebSocketServer({ server });
@@ -12,15 +12,11 @@ export const createWebSocketServer = (server) => {
         const { query } = JSON.parse(message);
         if (query) {
           console.log(`Received query: ${query}`);
-          scrapeAll({ body: { query } }, {
-            json: (data) => {
-              ws.send(JSON.stringify(data));
-            }
-          });
+          await scrapeAndStream(query, ws);
         }
       } catch (error) {
         console.error('Error processing message:', error);
-        ws.send(JSON.stringify({ success: false, message: 'Invalid message format' }));
+        ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Invalid message format' } }));
       }
     });
 

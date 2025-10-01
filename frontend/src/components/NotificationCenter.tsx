@@ -12,7 +12,7 @@ interface Product {
 
 interface Notification {
   _id: string;
-  type: 'price_alert' | 'price_drop' | 'account' | 'system';
+  type: 'price_alert' | 'price_drop' | 'account' | 'system' | 'watchlist';
   title: string;
   message: string;
   productId: Product | null;
@@ -49,6 +49,8 @@ export const NotificationCenter = ({
         return 'text-purple-400';
       case 'system':
         return 'text-orange-400';
+      case 'watchlist':
+        return 'text-yellow-400';
       default:
         return 'text-cyan-400';
     }

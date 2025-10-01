@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, ShoppingCart } from "lucide-react";
+import { Loader2, AlertCircle, ShoppingCart, RefreshCw, Wifi, Network } from "lucide-react";
 import { ScrapedProduct } from "@/lib/api";
 import { socket, connectWebSocket, sendWebSocketMessage, closeWebSocket } from "@/lib/websocket";
 import { toast } from "sonner";
 import { ProductCard } from "./ProductCard";
 import { MarketplaceComparisonChart } from "./MarketplaceComparisonChart";
+import { ProductGridSkeleton, ChartSkeleton } from "@/components/ui/skeleton";
 import ScrollReveal from 'scrollreveal';
 
 interface ProductResultsProps {
   query: string;
+  products?: ScrapedProduct[]; // Add optional products prop
   onProductSelect?: (product: ScrapedProduct) => void;
   className?: string;
   isSearching?: boolean; // Added for synchronization
@@ -29,19 +31,29 @@ interface ProductWithScore extends ScrapedProduct {
 
 export const ProductResults: React.FC<ProductResultsProps> = ({
   query,
+  products: initialProducts = [], // Rename to initialProducts to avoid conflict
   onProductSelect,
   className = ""
 }) => {
-  const [products, setProducts] = useState<ScrapedProduct[]>([]);
+  const [products, setProducts] = useState<ScrapedProduct[]>(initialProducts || []);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [noResultsMarketplaces, setNoResultsMarketplaces] = useState<string[]>([]);
   const productContainerRef = useRef<HTMLDivElement>(null);
 
+  // Effect to use initialProducts when passed
+  useEffect(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      setProducts(initialProducts);
+      setLoading(false);
+      setError("");
+    }
+  }, [initialProducts]);
+
   useEffect(() => {
     const trimmedQuery = query?.trim();
-    if (trimmedQuery && trimmedQuery !== lastSearchedQuery) {
+    if (trimmedQuery && trimmedQuery !== lastSearchedQuery && !initialProducts) {
       setLoading(true);
       setError("");
       setProducts([]);
@@ -56,6 +68,9 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
           setLoading(false);
           if (data.products) {
             setProducts(data.products);
+          }
+          if (data.noResultsMarketplaces) {
+            setNoResultsMarketplaces(data.noResultsMarketplaces);
           }
         },
         (error) => {
@@ -73,12 +88,12 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
     }
 
     return () => {
-      // Only close the WebSocket if the component is unmounting
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      // Only close the WebSocket if the component is unmounting and no initial products
+      if (socket && socket.readyState === WebSocket.OPEN && !initialProducts) {
         closeWebSocket();
       }
     };
-  }, [query, lastSearchedQuery]);
+  }, [query, lastSearchedQuery, initialProducts]);
 
   // Initialize ScrollReveal for products when they load
   useEffect(() => {
@@ -114,29 +129,91 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
 
   return (
     <div className={`w-full ${className}`}>
-      {/* Loading State */}
+      {/* Loading State - Skeleton */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="w-12 h-12 animate-spin text-cyan-400 mb-4" />
-          <p className="text-gray-300 text-lg">Searching for products...</p>
-          <p className="text-gray-400 text-sm mt-2">This may take a few seconds</p>
+        <div className="space-y-8">
+          {/* Simulate marketplace sections */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-4 h-8 rounded-sm bg-slate-700 animate-pulse" />
+              <div className="h-6 w-24 bg-slate-700 rounded animate-pulse" />
+            </div>
+            <ProductGridSkeleton count={6} />
+          </div>
+
+          {/* Chart skeleton */}
+          <div className="mt-12">
+            <ChartSkeleton />
+          </div>
         </div>
       )}
 
-      {/* Error State */}
+      {/* Enhanced Error State */}
       {error && !loading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-          <p className="text-red-400 text-lg font-medium mb-2">Search Failed</p>
-          <p className="text-gray-400 text-center">{error}</p>
-          <Button
-            onClick={() => query && sendWebSocketMessage(query)}
-            variant="outline"
-            className="mt-4 border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
-            disabled={loading}
-          >
-            Try Again
-          </Button>
+        <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="bg-red-900/20 border border-red-400/30 rounded-lg p-8 max-w-md w-full">
+            {/* Error Type Detection */}
+            {error.toLowerCase().includes('network') || error.toLowerCase().includes('websocket') ? (
+              <>
+                <Network className="w-12 h-12 text-red-400 mb-4 mx-auto" />
+                <h3 className="text-red-400 text-lg font-semibold mb-2 text-center">Connection Error</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  Unable to connect to the search service. Please check your internet connection.
+                </p>
+              </>
+            ) : error.toLowerCase().includes('timeout') || error.toLowerCase().includes('server') ? (
+              <>
+                <RefreshCw className="w-12 h-12 text-yellow-400 mb-4 mx-auto" />
+                <h3 className="text-yellow-400 text-lg font-semibold mb-2 text-center">Service Unavailable</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  The search service is temporarily unavailable. This usually resolves automatically.
+                </p>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4 mx-auto" />
+                <h3 className="text-red-400 text-lg font-semibold mb-2 text-center">Search Failed</h3>
+                <p className="text-gray-300 text-center text-sm mb-4">
+                  An unexpected error occurred while searching for products.
+                </p>
+              </>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={() => query && sendWebSocketMessage(query)}
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                disabled={loading}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+
+              {error.toLowerCase().includes('network') && (
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                >
+                  <Wifi className="w-4 h-4 mr-2" />
+                  Check Connection
+                </Button>
+              )}
+            </div>
+
+            {/* Error Details (only in development) */}
+            {import.meta.env.DEV && (
+              <details className="mt-4 text-xs">
+                <summary className="text-slate-400 cursor-pointer hover:text-slate-300">
+                  Error Details
+                </summary>
+                <pre className="text-red-300 bg-slate-900/50 p-2 rounded mt-2 whitespace-pre-wrap">
+                  {error}
+                </pre>
+              </details>
+            )}
+          </div>
         </div>
       )}
 
@@ -207,54 +284,84 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
                   return acc;
                 }, {} as Record<string, ScrapedProduct[]>);
 
-                return Object.entries(groupedProducts).map(([marketplace, marketplaceProducts]) => (
-                  <div key={marketplace} className="mb-8">
-                    {/* Marketplace Section Heading */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div
-                        className="w-4 h-8 rounded-sm"
-                        style={{ backgroundColor: marketplaceColors[marketplace.toLowerCase()] }}
-                      />
-                      <h4 className="text-lg font-semibold text-white">
-                        {marketplace}
-                      </h4>
-                      <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400 ml-auto">
-                        {marketplaceProducts.length} {marketplaceProducts.length === 1 ? 'product' : 'products'}
-                      </Badge>
-                    </div>
+                // Get all marketplaces that should have sections
+                const allMarketplaces = ['Daraz', 'PriceOye', 'Telemart'];
 
-                    {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
-                      {marketplaceProducts.slice(0, 3).map((product, index) => (
-                        <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
-                          <ProductCard
-                            product={{
-                              id: `${product.marketplace}-${product.name}-${index}`,
-                              name: product.name,
-                              image: product.imageUrl,
-                              price: product.price as number,
-                              marketplace: product.marketplace,
-                              rating: Number(product.rating) || 0,
-                              reviews: 0, // Not available from scraper
-                              priceChange: 0, // Not available from scraper
-                              category: product.company || "General",
-                              url: product.url,
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                return allMarketplaces.map((marketplace) => {
+                  const marketplaceProducts = groupedProducts[marketplace] || [];
+                  const hasNoResult = noResultsMarketplaces.includes(marketplace);
 
-                    {/* Show message if more products available */}
-                    {marketplaceProducts.length > 3 && (
-                      <div className="text-center mt-4">
-                        <p className="text-sm text-slate-400">
-                          Showing 3 of {marketplaceProducts.length} products from {marketplace}
-                        </p>
+                  return (
+                    <div key={marketplace} className="mb-8">
+                      {/* Marketplace Section Heading */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div
+                          className="w-4 h-8 rounded-sm"
+                          style={{ backgroundColor: marketplaceColors[marketplace.toLowerCase()] }}
+                        />
+                        <h4 className="text-lg font-semibold text-white">
+                          {marketplace}
+                        </h4>
+                        {marketplaceProducts.length > 0 && (
+                          <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400 ml-auto">
+                            {marketplaceProducts.length} {marketplaceProducts.length === 1 ? 'product' : 'products'}
+                          </Badge>
+                        )}
+                        {hasNoResult && marketplaceProducts.length === 0 && (
+                          <Badge variant="secondary" className="bg-orange-400/20 text-orange-400 ml-auto">
+                            No results
+                          </Badge>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ));
+
+                      {/* Show "No relevant products" message */}
+                      {hasNoResult && marketplaceProducts.length === 0 ? (
+                        <div className="text-center py-8 bg-slate-800/20 border border-slate-600 rounded-lg">
+                          <ShoppingCart className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                          <p className="text-slate-400 text-sm">
+                            No relevant products found on {marketplace}
+                          </p>
+                          <p className="text-slate-500 text-xs mt-1">
+                            Try searching for different terms
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
+                          <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
+                            {marketplaceProducts.slice(0, 3).map((product, index) => (
+                              <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
+                                <ProductCard
+                                  product={{
+                                    id: `${product.marketplace}-${product.name}-${index}`,
+                                    name: product.name,
+                                    image: product.imageUrl,
+                                    price: product.price as number,
+                                    marketplace: product.marketplace,
+                                    rating: Number(product.rating) || 0,
+                                    reviews: 0, // Not available from scraper
+                                    priceChange: 0, // Not available from scraper
+                                    category: product.company || "General",
+                                    url: product.url,
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Show message if more products available */}
+                          {marketplaceProducts.length > 3 && (
+                            <div className="text-center mt-4">
+                              <p className="text-sm text-slate-400">
+                                Showing 3 of {marketplaceProducts.length} products from {marketplace}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                });
               })()}
             </div>
 

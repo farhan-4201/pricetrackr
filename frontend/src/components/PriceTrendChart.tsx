@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PriceData {
   date: string;
@@ -13,6 +13,44 @@ interface PriceTrendChartProps {
 
 export const PriceTrendChart = ({ historicalData, productName, className }: PriceTrendChartProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Simulate loading delay for chart initialization
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, [historicalData]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`bg-slate-900/50 rounded-lg p-6 border border-slate-700 ${className}`}>
+        <div className="h-6 w-48 bg-slate-700 rounded animate-pulse mb-4"></div>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="text-center p-4 bg-slate-800/50 rounded-lg">
+            <div className="h-4 w-16 bg-slate-700 rounded mx-auto mb-2 animate-pulse"></div>
+            <div className="h-6 w-12 bg-slate-700 rounded mx-auto animate-pulse"></div>
+          </div>
+          <div className="text-center p-4 bg-slate-800/50 rounded-lg">
+            <div className="h-4 w-20 bg-slate-700 rounded mx-auto mb-2 animate-pulse"></div>
+            <div className="h-6 w-14 bg-slate-700 rounded mx-auto animate-pulse"></div>
+          </div>
+          <div className="text-center p-4 bg-slate-800/50 rounded-lg">
+            <div className="h-4 w-18 bg-slate-700 rounded mx-auto mb-2 animate-pulse"></div>
+            <div className="h-6 w-10 bg-slate-700 rounded mx-auto animate-pulse"></div>
+          </div>
+        </div>
+        <div className="relative h-48 w-full bg-slate-800/30 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-center h-full">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+              <span className="text-slate-400 text-sm">Loading price data...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate price range for scaling
   const prices = historicalData.map(item => item.price);

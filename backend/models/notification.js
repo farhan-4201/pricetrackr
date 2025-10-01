@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 // --- Notification Schema ---
 const NotificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { 
-    type: String, 
-    enum: ['price_alert', 'price_drop', 'account', 'system'], 
-    required: true 
+  type: {
+    type: String,
+    enum: ['price_alert', 'price_drop', 'account', 'system', 'watchlist'],
+    required: true
   },
   title: { type: String, required: true },
   message: { type: String, required: true },

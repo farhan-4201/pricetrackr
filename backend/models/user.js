@@ -11,7 +11,10 @@ const UserSchema = new mongoose.Schema({
   },
   contactNumber: {
     type: String,
-    required: [true, "Contact number is required"],
+    required: function() {
+      // Contact number not required for Google OAuth users
+      return !this.googleId;
+    },
     trim: true,
     match: [/^\+?[\d\s\-\(\)]+$/, 'Please enter a valid contact number']
   },
@@ -25,8 +28,15 @@ const UserSchema = new mongoose.Schema({
   },
   passwordHash: {
     type: String,
-    required: [true, "Password is required"],
+    required: function() {
+      // Password not required for Google OAuth users
+      return !this.googleId;
+    },
     minlength: [8, "Password must be at least 8 characters long"]
+  },
+  googleId: {
+    type: String,
+    sparse: true // Allows multiple null values but unique non-null values
   },
   createdAt: {
     type: Date,

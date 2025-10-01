@@ -1,4 +1,5 @@
 import express from "express";
+import passport from "../middleware/googleAuth.js";
 import User from "../models/user.js";
 import rateLimit from "express-rate-limit";
 import { authenticate, generateToken } from "../middleware/auth.js";
@@ -140,5 +141,29 @@ router.post("/login", authLimiter, validateLogin, handleValidationErrors, async 
 router.post("/logout", authenticate, (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
+
+// Google OAuth routes
+router.get("/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+router.get("/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "http://localhost:5173/signin" }),
+  async (req, res) => {
+    try {
+      // User is authenticated and available in req.user
+      const user = req.user;
+
+      // Generate JWT token
+      const token = generateToken(user._id);
+
+      // Redirect to frontend with token
+      res.redirect(`http://localhost:5173/auth/google?token=${token}&user=${encodeURIComponent(JSON.stringify(user.getPublicProfile()))}`);
+    } catch (error) {
+      console.error("Google OAuth callback error:", error);
+      res.redirect("http://localhost:5173/signin?error=oauth_failed");
+    }
+  }
+);
 
 export default router;

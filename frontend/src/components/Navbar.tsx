@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { BarChart, Menu, Bell, User, LogOut, X, Settings } from "lucide-react";
+import { BarChart, Menu, Bell, User, LogOut, X, Settings, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +20,7 @@ export const Navbar = () => {
   const { user, isAuthenticated, signout } = useAuth();
 
   const navLinks = [
+    { to: "/dashboard", label: "Dashboard" },
     { to: "/features", label: "Features" },
     { to: "/pricing", label: "Pricing" },
     { to: "/about", label: "About" },
@@ -229,7 +230,17 @@ export const Navbar = () => {
                         Notifications
                       </Link>
                     </DropdownMenuItem>
-                    
+
+                    <DropdownMenuItem
+                      className="hover:bg-slate-800/50 text-slate-200 focus:bg-slate-800/50 cursor-pointer p-3 transition-colors"
+                      asChild
+                    >
+                      <Link to="/watchlist" className="flex items-center">
+                        <Heart className="mr-3 h-4 w-4" />
+                        Watchlist
+                      </Link>
+                    </DropdownMenuItem>
+
                     <DropdownMenuSeparator className="bg-slate-700/50" />
                     
                     <DropdownMenuItem
@@ -366,6 +377,20 @@ export const Navbar = () => {
                   >
                     <Settings className="mr-3 h-5 w-5" />
                     Settings
+                  </Button>
+                </Link>
+
+                <Link to="/watchlist" onClick={() => setIsMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className="w-full text-slate-300 hover:text-cyan-400 py-3 text-lg justify-start"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(34, 211, 238, 0.2)",
+                    }}
+                  >
+                    <Heart className="mr-3 h-5 w-5" />
+                    Watchlist
                   </Button>
                 </Link>
 

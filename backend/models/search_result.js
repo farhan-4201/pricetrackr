@@ -13,7 +13,7 @@ const SearchResultSchema = new mongoose.Schema({
     imageUrl: String,
     marketplace: {
       type: String,
-      enum: ['Daraz', 'PriceOye', 'Amazon', 'eBay', 'Alibaba'],
+      enum: ['Daraz', 'PriceOye', 'Amazon', 'eBay', 'Alibaba', 'Telemart'],
       required: true
     }
   }],
