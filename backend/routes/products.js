@@ -1,7 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
 import { authenticate as auth } from "../middleware/auth.js";
-import { scrapeAll } from "../controllers/scraper.controller.js";
 import SearchResult from "../models/search_result.js";
 import { scrapingRateLimiter } from "../middleware/rateLimiter.js";
 import { validateSearch } from "../middleware/validation.js";
@@ -220,79 +219,37 @@ router.get("/:id/history", auth, async (req, res) => {
   }
 });
 
-// --- Scraping Endpoints ---
-
-// Daraz scrape
-router.post("/scrape/daraz", scrapingRateLimiter, validateSearch, async (req, res) => {
+// Get saved search results
+router.get("/search-results", async (req, res) => {
   try {
-    const { query } = req.body;
-    console.log(`[${new Date().toISOString()}] Daraz scrape: ${query} from IP: ${req.ip}`);
+    const { query, limit = 10, page = 1 } = req.query;
+    let filter = {};
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request timeout")), 30000)
-    );
-    const scrapePromise = scraperController.scrapeDaraz(query);
-    const results = await Promise.race([scrapePromise, timeoutPromise]);
-
-    if (results.products?.length > 0) {
-      const searchResult = new SearchResult({
-        query,
-        results: results.products.map(p => ({
-          name: p.name,
-          price: p.price,
-          url: p.url,
-          imageUrl: p.imageUrl,
-          marketplace: "Daraz"
-        })),
-        searchedAt: new Date(),
-        resultCount: results.products.length
-      });
-      await searchResult.save();
+    if (query) {
+      filter.query = { $regex: query, $options: "i" };
     }
 
-    res.json({ success: true, source: "Daraz", products: results.products, total: results.products.length, timestamp: new Date().toISOString() });
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const searchResults = await SearchResult
+      .find(filter)
+      .sort({ searchedAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    const total = await SearchResult.countDocuments(filter);
+
+    res.json({
+      results: searchResults,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
   } catch (error) {
-    console.error(`Daraz scrape error: ${error.message}`);
-    res.status(error.message.includes("timeout") ? 408 : 500).json({ error: error.message, source: "Daraz", timestamp: new Date().toISOString() });
+    res.status(500).json({ error: "Failed to fetch search results" });
   }
 });
-
-// PriceOye scrape
-router.post("/scrape/priceoye", scrapingRateLimiter, validateSearch, async (req, res) => {
-  try {
-    const { query } = req.body;
-    console.log(`[${new Date().toISOString()}] PriceOye scrape: ${query} from IP: ${req.ip}`);
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Request timeout")), 45000)
-    );
-    const scrapePromise = scraperController.scrapePriceOye(query);
-    const results = await Promise.race([scrapePromise, timeoutPromise]);
-
-    if (results.products?.length > 0) {
-      const searchResult = new SearchResult({
-        query,
-        results: results.products.map(p => ({
-          name: p.name,
-          price: p.price,
-          url: p.url,
-          imageUrl: p.imageUrl,
-          marketplace: "PriceOye"
-        })),
-        searchedAt: new Date(),
-        resultCount: results.products.length
-      });
-      await searchResult.save();
-    }
-
-    res.json({ success: true, source: "PriceOye", products: results.products, total: results.products.length, timestamp: new Date().toISOString() });
-  } catch (error) {
-    console.error(`PriceOye scrape error: ${error.message}`);
-    res.status(error.message.includes("timeout") ? 408 : 500).json({ error: error.message, source: "PriceOye", timestamp: new Date().toISOString() });
-  }
-});
-
-// Combined scrape
-router.post("/scrape", scrapingRateLimiter, validateSearch, scrapeAll);
 
 export default router;

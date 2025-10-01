@@ -20,6 +20,7 @@ export const Navbar = () => {
   const { user, isAuthenticated, signout } = useAuth();
 
   const navLinks = [
+    { to: "/dashboard", label: "Dashboard" },
     { to: "/features", label: "Features" },
     { to: "/pricing", label: "Pricing" },
     { to: "/about", label: "About" },

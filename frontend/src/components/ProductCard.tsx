@@ -108,14 +108,17 @@ export const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <div
-      className="rounded-xl p-6 border transition-all duration-500 hover:scale-[1.02] cursor-pointer group relative overflow-hidden h-full flex flex-col"
+      className="rounded-xl p-6 border transition-all duration-700 hover:scale-[1.03] hover:rotate-1 cursor-pointer group relative overflow-hidden h-full flex flex-col color-shift-hover"
       style={{
         background: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: "1px solid rgba(34, 211, 238, 0.1)",
-        boxShadow: isHovered ? "0 20px 40px rgba(34, 211, 238, 0.2)" : "0 8px 32px rgba(0, 0, 0, 0.3)",
-        minHeight: "400px" // Consistent minimum height
+        boxShadow: isHovered
+          ? "0 25px 50px rgba(34, 211, 238, 0.3), inset 0 0 20px rgba(34, 211, 238, 0.1)"
+          : "0 8px 32px rgba(0, 0, 0, 0.3)",
+        minHeight: "400px", // Consistent minimum height
+        transform: isHovered ? "translateY(-8px) rotateX(5deg)" : "translateY(0) rotateX(0)",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

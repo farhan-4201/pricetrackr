@@ -17,8 +17,12 @@ const Pricing = lazy(() => import("./pages/Pricing").then(module => ({ default: 
 const About = lazy(() => import("./pages/About").then(module => ({ default: module.About })));
 const Signup = lazy(() => import("./pages/Signup"));
 const Signin = lazy(() => import("./pages/Signin"));
+const GoogleAuth = lazy(() => import("./pages/GoogleAuth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const WatchlistPage = lazy(() => import("./pages/WatchlistPage"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -69,8 +73,33 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/notifications"
+                    element={
+                      <ProtectedRoute>
+                        <Notifications />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/signin" element={<Signin />} />
+                  <Route path="/auth/google" element={<GoogleAuth />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

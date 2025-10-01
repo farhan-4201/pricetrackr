@@ -95,10 +95,16 @@ function calculateRelevance(productName, query) {
 
   // Check for word matches with improved logic
   for (const word of queryWords) {
-    if (productLower.includes(word)) {
+    // Also check for singular/plural forms simply by removing 's'
+    const singularWord = word.endsWith("s") ? word.slice(0, -1) : null;
+
+    if (
+      productLower.includes(word) ||
+      (singularWord && productLower.includes(singularWord))
+    ) {
       matchedWords++;
       // Bonus for exact word matches (including partial matches at word boundaries)
-      const wordRegex = new RegExp(`\\b${word}\\w*`, 'i');
+      const wordRegex = new RegExp(`\\b${word}\\w*`, "i");
       if (wordRegex.test(productName)) {
         score += 2;
       } else {

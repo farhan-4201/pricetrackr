@@ -3,6 +3,7 @@
 import darazScraper from "../scrapers/daraz_api_scraper.js";
 import priceOyeScraper from "../scrapers/priceoye_api_scraper.js";
 import telemartScraper from "../scrapers/telemart_scraper.js";
+import SearchResult from "../models/search_result.js";
 
 /**
  * Normalize marketplace values to match schema enum
@@ -16,107 +17,40 @@ function normalizeMarketplace(marketplace) {
   return marketplace;
 }
 
-export const scrapeAll = async (req, res) => {
-  try {
-    const { query } = req.body;
-    if (!query) {
-      return res.status(400).json({ success: false, message: "Query is required" });
-    }
+export const scrapeAndStream = async (query, ws) => {
+  const scrapers = [
+    { fn: darazScraper, name: "Daraz", timeout: 15000 },
+    { fn: priceOyeScraper, name: "PriceOye", timeout: 20000 },
+    { fn: telemartScraper, name: "Telemart", timeout: 8000 },
+  ];
 
-    const results = {
-      success: true,
-      query,
-      products: [],
-      total: 0,
-      sources: {},
-      timestamp: new Date(),
-      cached: false
-    };
+  const promises = scrapers.map(async ({ fn, name, timeout }) => {
+    try {
+      const result = await Promise.race([
+        fn(query),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`${name} scraper timeout`)), timeout)
+        ),
+      ]);
 
-    // Run scrapers in parallel
-    const [darazRes, priceOyeRes, telemartRes] = await Promise.allSettled([
-      darazScraper(query),
-      priceOyeScraper(query),
-      telemartScraper(query)
-    ]);
-
-    console.log(`[Controller] Daraz result:`, darazRes);
-    console.log(`[Controller] PriceOye result:`, priceOyeRes);
-    console.log(`[Controller] Telemart result:`, telemartRes);
-
-    // Collect Daraz results
-    if (darazRes.status === "fulfilled" && darazRes.value.success) {
-      const products = darazRes.value.products.map(p => ({
-        ...p,
-        marketplace: normalizeMarketplace(p.marketplace)
-      }));
-      console.log(`[Controller] Daraz products after normalization:`, products);
-      results.products.push(...products);
-      results.sources.daraz = { success: true, count: products.length };
-      results.total += products.length;
-    } else {
-      console.log(`[Controller] Daraz failed:`, darazRes.reason?.message);
-      results.sources.daraz = { success: false, count: 0, error: darazRes.reason?.message };
-    }
-
-    // Collect PriceOye results
-    if (priceOyeRes.status === "fulfilled" && priceOyeRes.value.success) {
-      const products = priceOyeRes.value.products.map(p => ({
-        ...p,
-        marketplace: normalizeMarketplace(p.marketplace)
-      }));
-      console.log(`[Controller] PriceOye products after normalization:`, products);
-      results.products.push(...products);
-      results.sources.priceoye = { success: true, count: products.length };
-      results.total += products.length;
-    } else {
-      console.log(`[Controller] PriceOye failed:`, priceOyeRes.reason?.message);
-      results.sources.priceoye = { success: false, count: 0, error: priceOyeRes.reason?.message };
-    }
-
-    // Collect Telemart results
-    if (telemartRes.status === "fulfilled" && telemartRes.value.success) {
-      const products = telemartRes.value.products.map(p => ({
-        ...p,
-        marketplace: normalizeMarketplace(p.marketplace)
-      }));
-      console.log(`[Controller] Telemart products after normalization:`, products);
-      results.products.push(...products);
-      results.sources.telemart = { success: true, count: products.length };
-      results.total += products.length;
-    } else {
-      console.log(`[Controller] Telemart failed:`, telemartRes.reason?.message);
-      results.sources.telemart = { success: false, count: 0, error: telemartRes.reason?.message };
-    }
-
-    results.products.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-
-    // Get the 2 best products from each marketplace
-    const bestProductsPerMarketplace = {};
-    for (const product of results.products) {
-      const marketplace = product.marketplace;
-      if (!bestProductsPerMarketplace[marketplace]) {
-        bestProductsPerMarketplace[marketplace] = [];
+      if (result.success && result.products.length > 0) {
+        const products = result.products.map(p => ({
+          ...p,
+          marketplace: normalizeMarketplace(p.marketplace),
+        }));
+        ws.send(JSON.stringify({ type: 'RESULT', payload: { marketplace: name, products } }));
+      } else {
+        ws.send(JSON.stringify({ type: 'NO_RESULTS', payload: { marketplace: name } }));
       }
-
-      // Keep only top 2 products per marketplace
-      if (bestProductsPerMarketplace[marketplace].length < 2) {
-        bestProductsPerMarketplace[marketplace].push(product);
-      }
+    } catch (error) {
+      console.error(`[Controller] ${name} scraper failed:`, error.message);
+      ws.send(JSON.stringify({ type: 'ERROR', payload: { marketplace: name, message: error.message } }));
     }
+  });
 
-    // Flatten the grouped products back to array
-    const finalProducts = Object.values(bestProductsPerMarketplace).flat();
-    results.products = finalProducts;
-    results.total = finalProducts.length;
+  await Promise.allSettled(promises);
 
-    console.log(`[Controller] Final results:`, results);
-
-    return res.json(results);
-  } catch (err) {
-    console.error("Scraper error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
+  ws.send(JSON.stringify({ type: 'DONE' }));
 };
 
 // Individual scraper functions for routes

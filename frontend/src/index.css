@@ -214,6 +214,96 @@ All colors MUST be HSL.
     -webkit-mask-composite: xor;
   }
 
+  /* Pulse glow animation */
+  .pulse-glow {
+    animation: pulse-glow 2s infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: var(--glow-cyan);
+    }
+    50% {
+      box-shadow: 0 0 30px hsl(var(--neon-cyan) / 0.4);
+    }
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      110deg,
+      hsl(var(--secondary) / 0.3) 8%,
+      hsl(var(--primary) / 0.2) 18%,
+      hsl(var(--secondary) / 0.3) 33%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Float animation */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Breathing glow */
+  .breath-glow {
+    animation: breath-glow 4s ease-in-out infinite;
+  }
+
+  @keyframes breath-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px hsl(var(--neon-cyan) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px hsl(var(--neon-cyan) / 0.6);
+    }
+  }
+
+  /* Rainbow gradient animation */
+  .rainbow-grad {
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    background-size: 400% 400%;
+    animation: rainbow-grad 3s ease infinite;
+  }
+
+  @keyframes rainbow-grad {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Scale on hover with color shift */
+  .color-shift-hover:hover {
+    transform: scale(1.05);
+    filter: hue-rotate(180deg);
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px hsl(var(--neon-purple) / 0.3);
+  }
+
   /* Hide scrollbar */
   .scrollbar-hide {
     -ms-overflow-style: none;  /* IE and Edge */

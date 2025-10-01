@@ -3,36 +3,25 @@ import { SearchDashboard } from "../components/SearchDashboard";
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8" style={{ background: '#020617' }}>
       {/* Header */}
-      <motion.h1
-        className="text-4xl md:text-5xl font-extrabold text-center mb-10 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"
+      <motion.div
+        className="text-center mb-8 md:mb-12"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.6 }}
       >
-        Dashboard
-      </motion.h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-center mb-3 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 leading-tight">
+          Welcome to Your Dashboard
+        </h1>
+        <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+          Discover the best deals across marketplaces and track price changes with intelligent monitoring
+        </p>
+      </motion.div>
 
       {/* Search Dashboard Component */}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto mb-12">
         <SearchDashboard />
-      </div>
-
-      {/* Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-        {["Users", "Sales", "Performance"].map((title, index) => (
-          <motion.div
-            key={title}
-            className="rounded-2xl p-6 bg-white/10 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-cyan-400/30 transition-shadow"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.2, duration: 0.6 }}
-          >
-            <h2 className="text-xl font-semibold mb-2 text-cyan-300">{title}</h2>
-            <p className="text-gray-300 text-sm">Some futuristic stats and metrics go here.</p>
-          </motion.div>
-        ))}
       </div>
     </div>
   );

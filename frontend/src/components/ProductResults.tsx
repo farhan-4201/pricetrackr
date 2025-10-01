@@ -12,6 +12,7 @@ import ScrollReveal from 'scrollreveal';
 
 interface ProductResultsProps {
   query: string;
+  products?: ScrapedProduct[]; // Add optional products prop
   onProductSelect?: (product: ScrapedProduct) => void;
   className?: string;
   isSearching?: boolean; // Added for synchronization
@@ -30,19 +31,29 @@ interface ProductWithScore extends ScrapedProduct {
 
 export const ProductResults: React.FC<ProductResultsProps> = ({
   query,
+  products: initialProducts = [], // Rename to initialProducts to avoid conflict
   onProductSelect,
   className = ""
 }) => {
-  const [products, setProducts] = useState<ScrapedProduct[]>([]);
+  const [products, setProducts] = useState<ScrapedProduct[]>(initialProducts || []);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [noResultsMarketplaces, setNoResultsMarketplaces] = useState<string[]>([]);
   const productContainerRef = useRef<HTMLDivElement>(null);
 
+  // Effect to use initialProducts when passed
+  useEffect(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      setProducts(initialProducts);
+      setLoading(false);
+      setError("");
+    }
+  }, [initialProducts]);
+
   useEffect(() => {
     const trimmedQuery = query?.trim();
-    if (trimmedQuery && trimmedQuery !== lastSearchedQuery) {
+    if (trimmedQuery && trimmedQuery !== lastSearchedQuery && !initialProducts) {
       setLoading(true);
       setError("");
       setProducts([]);
@@ -57,6 +68,9 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
           setLoading(false);
           if (data.products) {
             setProducts(data.products);
+          }
+          if (data.noResultsMarketplaces) {
+            setNoResultsMarketplaces(data.noResultsMarketplaces);
           }
         },
         (error) => {
@@ -74,12 +88,12 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
     }
 
     return () => {
-      // Only close the WebSocket if the component is unmounting
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      // Only close the WebSocket if the component is unmounting and no initial products
+      if (socket && socket.readyState === WebSocket.OPEN && !initialProducts) {
         closeWebSocket();
       }
     };
-  }, [query, lastSearchedQuery]);
+  }, [query, lastSearchedQuery, initialProducts]);
 
   // Initialize ScrollReveal for products when they load
   useEffect(() => {
@@ -270,54 +284,84 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
                   return acc;
                 }, {} as Record<string, ScrapedProduct[]>);
 
-                return Object.entries(groupedProducts).map(([marketplace, marketplaceProducts]) => (
-                  <div key={marketplace} className="mb-8">
-                    {/* Marketplace Section Heading */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div
-                        className="w-4 h-8 rounded-sm"
-                        style={{ backgroundColor: marketplaceColors[marketplace.toLowerCase()] }}
-                      />
-                      <h4 className="text-lg font-semibold text-white">
-                        {marketplace}
-                      </h4>
-                      <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400 ml-auto">
-                        {marketplaceProducts.length} {marketplaceProducts.length === 1 ? 'product' : 'products'}
-                      </Badge>
-                    </div>
+                // Get all marketplaces that should have sections
+                const allMarketplaces = ['Daraz', 'PriceOye', 'Telemart'];
 
-                    {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
-                      {marketplaceProducts.slice(0, 3).map((product, index) => (
-                        <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
-                          <ProductCard
-                            product={{
-                              id: `${product.marketplace}-${product.name}-${index}`,
-                              name: product.name,
-                              image: product.imageUrl,
-                              price: product.price as number,
-                              marketplace: product.marketplace,
-                              rating: Number(product.rating) || 0,
-                              reviews: 0, // Not available from scraper
-                              priceChange: 0, // Not available from scraper
-                              category: product.company || "General",
-                              url: product.url,
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                return allMarketplaces.map((marketplace) => {
+                  const marketplaceProducts = groupedProducts[marketplace] || [];
+                  const hasNoResult = noResultsMarketplaces.includes(marketplace);
 
-                    {/* Show message if more products available */}
-                    {marketplaceProducts.length > 3 && (
-                      <div className="text-center mt-4">
-                        <p className="text-sm text-slate-400">
-                          Showing 3 of {marketplaceProducts.length} products from {marketplace}
-                        </p>
+                  return (
+                    <div key={marketplace} className="mb-8">
+                      {/* Marketplace Section Heading */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div
+                          className="w-4 h-8 rounded-sm"
+                          style={{ backgroundColor: marketplaceColors[marketplace.toLowerCase()] }}
+                        />
+                        <h4 className="text-lg font-semibold text-white">
+                          {marketplace}
+                        </h4>
+                        {marketplaceProducts.length > 0 && (
+                          <Badge variant="secondary" className="bg-cyan-400/20 text-cyan-400 ml-auto">
+                            {marketplaceProducts.length} {marketplaceProducts.length === 1 ? 'product' : 'products'}
+                          </Badge>
+                        )}
+                        {hasNoResult && marketplaceProducts.length === 0 && (
+                          <Badge variant="secondary" className="bg-orange-400/20 text-orange-400 ml-auto">
+                            No results
+                          </Badge>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ));
+
+                      {/* Show "No relevant products" message */}
+                      {hasNoResult && marketplaceProducts.length === 0 ? (
+                        <div className="text-center py-8 bg-slate-800/20 border border-slate-600 rounded-lg">
+                          <ShoppingCart className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                          <p className="text-slate-400 text-sm">
+                            No relevant products found on {marketplace}
+                          </p>
+                          <p className="text-slate-500 text-xs mt-1">
+                            Try searching for different terms
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
+                          <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
+                            {marketplaceProducts.slice(0, 3).map((product, index) => (
+                              <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
+                                <ProductCard
+                                  product={{
+                                    id: `${product.marketplace}-${product.name}-${index}`,
+                                    name: product.name,
+                                    image: product.imageUrl,
+                                    price: product.price as number,
+                                    marketplace: product.marketplace,
+                                    rating: Number(product.rating) || 0,
+                                    reviews: 0, // Not available from scraper
+                                    priceChange: 0, // Not available from scraper
+                                    category: product.company || "General",
+                                    url: product.url,
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Show message if more products available */}
+                          {marketplaceProducts.length > 3 && (
+                            <div className="text-center mt-4">
+                              <p className="text-sm text-slate-400">
+                                Showing 3 of {marketplaceProducts.length} products from {marketplace}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                });
               })()}
             </div>
 

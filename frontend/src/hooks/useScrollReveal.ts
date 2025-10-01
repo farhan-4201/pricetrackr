@@ -67,10 +67,11 @@ export const useScrollReveal = ({
       });
     }
 
-    // Cleanup function
+    // Cleanup function - capture the ref value to avoid stale closure
     return () => {
-      if (containerRef.current) {
-        sr.clean(containerRef.current.querySelectorAll(selector));
+      const container = containerRef.current;
+      if (container) {
+        sr.clean(container.querySelectorAll(selector));
       } else {
         sr.clean(document.querySelectorAll(selector));
       }

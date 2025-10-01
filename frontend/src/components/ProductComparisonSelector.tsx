@@ -1,4 +1,4 @@
-import React, { useState, useContext, createContext, ReactNode } from 'react';
+import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,82 +6,7 @@ import { Check, X, GitCompare, ShoppingCart, Star } from "lucide-react";
 import { ScrapedProduct } from "@/lib/api";
 import { toast } from "sonner";
 import { ProductComparisonModal } from "./ProductComparisonModal";
-
-interface ComparisonContextType {
-  selectedProducts: ScrapedProduct[];
-  addToComparison: (product: ScrapedProduct) => void;
-  removeFromComparison: (product: ScrapedProduct) => void;
-  clearComparison: () => void;
-  isInComparison: (product: ScrapedProduct) => boolean;
-  maxProducts: number;
-}
-
-const ComparisonContext = createContext<ComparisonContextType | null>(null);
-
-export const useComparison = () => {
-  const context = useContext(ComparisonContext);
-  if (!context) {
-    throw new Error('useComparison must be used within a ComparisonProvider');
-  }
-  return context;
-};
-
-interface ComparisonProviderProps {
-  children: ReactNode;
-  maxProducts?: number;
-}
-
-export const ComparisonProvider: React.FC<ComparisonProviderProps> = ({
-  children,
-  maxProducts = 4
-}) => {
-  const [selectedProducts, setSelectedProducts] = useState<ScrapedProduct[]>([]);
-
-  const addToComparison = (product: ScrapedProduct) => {
-    if (selectedProducts.length >= maxProducts) {
-      toast.error(`Maximum ${maxProducts} products can be compared at once`);
-      return;
-    }
-
-    // Check if product is already in comparison (by URL to avoid duplicates)
-    if (selectedProducts.some(p => p.url === product.url)) {
-      toast.warning('Product already in comparison');
-      return;
-    }
-
-    setSelectedProducts(prev => [...prev, product]);
-    toast.success('Product added to comparison');
-  };
-
-  const removeFromComparison = (product: ScrapedProduct) => {
-    setSelectedProducts(prev => prev.filter(p => p.url !== product.url));
-    toast.success('Product removed from comparison');
-  };
-
-  const clearComparison = () => {
-    setSelectedProducts([]);
-    toast.success('Comparison cleared');
-  };
-
-  const isInComparison = (product: ScrapedProduct) => {
-    return selectedProducts.some(p => p.url === product.url);
-  };
-
-  const value = {
-    selectedProducts,
-    addToComparison,
-    removeFromComparison,
-    clearComparison,
-    isInComparison,
-    maxProducts
-  };
-
-  return (
-    <ComparisonContext.Provider value={value}>
-      {children}
-    </ComparisonContext.Provider>
-  );
-};
+import { useComparison, ComparisonProvider } from "@/context/ComparisonContext";
 
 export const ComparisonButton: React.FC<{ product: ScrapedProduct }> = ({ product }) => {
   const { addToComparison, removeFromComparison, isInComparison, selectedProducts, maxProducts } = useComparison();
@@ -222,6 +147,9 @@ interface ComparisonQuickViewProps {
   product: ScrapedProduct;
   className?: string;
 }
+
+// Re-export ComparisonProvider for backward compatibility
+export { ComparisonProvider } from "@/context/ComparisonContext";
 
 export const ComparisonQuickView: React.FC<ComparisonQuickViewProps> = ({
   product,

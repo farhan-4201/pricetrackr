@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from "@/lib/utils";
 import { AlertCircle, RefreshCw, Image as ImageIcon } from "lucide-react";
 
@@ -52,14 +52,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Load image when it comes into view
-  useEffect(() => {
-    if (isInView && !isLoaded && !hasError) {
-      loadImage();
-    }
-  }, [isInView, src, isLoaded, hasError, retryCount]);
-
-  const loadImage = () => {
+  const loadImage = useCallback(() => {
     if (!src) {
       setHasError(true);
       return;
@@ -82,7 +75,14 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       setIsLoading(false);
       onError?.();
     };
-  };
+  }, [src, onLoad, onError]);
+
+  // Load image when it comes into view
+  useEffect(() => {
+    if (isInView && !isLoaded && !hasError) {
+      loadImage();
+    }
+  }, [isInView, isLoaded, hasError, retryCount, loadImage]);
 
   const handleRetry = () => {
     setHasError(false);

@@ -428,11 +428,21 @@ export const productsAPI = {
     return apiClient.post('/products/scrape/daraz', { query: product_name });
   },
 
+  // Get saved search results
+  getSearchResults: async (query?: string, limit?: number, page?: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+    if (limit) params.set('limit', limit.toString());
+    if (page) params.set('page', page.toString());
+    const queryString = params.toString();
+    return apiClient.get(`/products/search-results${queryString ? '?' + queryString : ''}`);
+  },
+
   // Updated scrape endpoint for Daraz
   searchDarazProducts: async (query: string): Promise<ScrapedProduct[]> => {
     try {
         console.log('[API] Calling Daraz scraper with query:', query);
-        
+
         const response = await apiClient.post<{ products: ScrapedProduct[] }>('/products/scrape/daraz', {
             query
         });
