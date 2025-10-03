@@ -72,5 +72,68 @@ export const scrapePriceOye = async (query) => {
   }
 };
 
+// Controller for handling HTTP scrape requests
+export const scraperController = async (req, res) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ success: false, message: "Search query is required." });
+  }
+
+  const scrapers = [
+    { fn: darazScraper, name: "Daraz", timeout: 15000 },
+    { fn: priceOyeScraper, name: "PriceOye", timeout: 20000 },
+    { fn: telemartScraper, name: "Telemart", timeout: 8000 },
+  ];
+
+  let allProducts = [];
+  const sources = {};
+
+  const promises = scrapers.map(async ({ fn, name, timeout }) => {
+    try {
+      const result = await Promise.race([
+        fn(query),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`${name} scraper timeout`)), timeout)
+        ),
+      ]);
+
+      if (result.success && result.products.length > 0) {
+        const products = result.products.map(p => ({
+          ...p,
+          marketplace: normalizeMarketplace(p.marketplace || name),
+        }));
+        allProducts.push(...products);
+        sources[name.toLowerCase()] = { success: true, count: products.length };
+      } else {
+        sources[name.toLowerCase()] = { success: true, count: 0 };
+      }
+    } catch (error) {
+      console.error(`[Controller] ${name} scraper failed:`, error.message);
+      sources[name.toLowerCase()] = { success: false, count: 0, error: error.message };
+    }
+  });
+
+  await Promise.allSettled(promises);
+
+  const response = {
+    success: true,
+    query,
+    products: allProducts,
+    total: allProducts.length,
+    sources,
+    timestamp: new Date().toISOString(),
+    cached: false,
+  };
+
+  try {
+    const searchResult = new SearchResult(response);
+    await searchResult.save();
+  } catch (dbError) {
+    console.error("Failed to save search result:", dbError);
+  }
+
+  res.json(response);
+};
+
 // Default export for compatibility with routes
 export default { scrapeDaraz, scrapePriceOye };

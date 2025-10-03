@@ -1,55 +1,36 @@
-// test_telemart_scraper.js
-import { TelemartScraper } from "./telemart_scraper.js";
+// backend/scrapers/test.js
+import { PriceOyeScraper } from "./priceoye_api_scraper.js";
 
-async function runTelemartTest() {
-  const scraper = new TelemartScraper();
+async function runTests() {
+  console.log("🚀 Running manual tests...");
+  const scraper = new PriceOyeScraper();
 
   try {
-    console.log("🚀 Initializing Telemart Scraper...");
-    await scraper.init();
-
-    // Step 1: Test connection
-    console.log("\n🧪 Testing connection to Telemart...");
-    const connected = await scraper.testConnection();
-    if (!connected) {
-      console.error("❌ Failed to connect to Telemart. Exiting test.");
-      return;
+    // Test 1: Empty query should throw
+    try {
+      await scraper.searchProducts("");
+    } catch (err) {
+      console.log("✅ Empty query correctly threw error:", err.message);
     }
 
-    // Step 2: Run product searches
-    const queries = ["iPhone 14", "Samsung Galaxy", "HP laptop"];
-    console.log(`\n🔎 Running test searches for queries: ${queries.join(", ")}`);
+    // Test 2: Normal search
+    await scraper.initBrowser();
+    let products = await scraper.searchProducts("iPhone");
+    console.log("✅ Found products:", products.length);
+    console.log(products.slice(0, 2));
 
-    for (const query of queries) {
-      console.log(`\n📌 Searching for: "${query}"`);
-      const products = await scraper.searchProducts(query);
+    // Test 3: Nonsense query
+    products = await scraper.searchProducts("asdkjfhakjsdhf");
+    console.log("✅ Nonsense query returned:", products.length, "results");
 
-      if (products.length === 0) {
-        console.log(`⚠️ No products found for "${query}"`);
-        continue;
-      }
-
-      console.log(`✅ Found ${products.length} products for "${query}"`);
-
-      // Print top 3 results in detail
-      products.slice(0, 3).forEach((product, i) => {
-        console.log(`\n${i + 1}. ${product.name}`);
-        console.log(`   Price: Rs. ${product.price || "N/A"}`);
-        console.log(`   Company: ${product.company}`);
-        console.log(`   Rating: ${product.rating || "N/A"}`);
-        console.log(`   URL: ${product.url}`);
-        console.log(`   Image: ${product.imageUrl}`);
-      });
-    }
-  } catch (error) {
-    console.error("❌ Test run failed:", error.message);
+    // Test 4: Another valid query
+    products = await scraper.searchProducts("Samsung Galaxy");
+    console.log("✅ Convenience function: Products found:", products.length);
+  } catch (err) {
+    console.error("❌ Test failed:", err);
   } finally {
-    console.log("\n🛑 Closing scraper...");
-    await scraper.close();
+    await scraper.closeBrowser();
   }
 }
 
-// Run test if file executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runTelemartTest();
-}
+runTests();

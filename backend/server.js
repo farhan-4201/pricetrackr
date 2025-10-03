@@ -12,6 +12,7 @@ import watchlistRouter from "./routes/watchlist.js";
 import passport from "./middleware/googleAuth.js";
 import { createWebSocketServer } from './websocket.js';
 import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+import { monitorPrices } from './price-monitor.js';
 
 // Winston logging setup
 const logger = winston.createLogger({
@@ -43,7 +44,14 @@ const server = app.listen(PORT, () => {
 
 createWebSocketServer(server);
 
-connectDB();
+connectDB().then(() => {
+  // Start the price monitoring cronjob after successful DB connection
+  logger.info('Starting price monitoring cronjob...');
+  monitorPrices();
+  logger.info('Price monitoring cronjob started successfully');
+}).catch((error) => {
+  logger.error('Failed to start price monitoring cronjob:', error);
+});
 
 // Security and general middleware
 app.use(helmet({

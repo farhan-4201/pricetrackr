@@ -10,7 +10,8 @@ const NotificationSchema = new mongoose.Schema({
   },
   title: { type: String, required: true },
   message: { type: String, required: true },
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' }, // Optional ObjectId reference for Product model
+  productIdentifier: { type: String }, // Optional string identifier for external products (like watchlist items)
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
