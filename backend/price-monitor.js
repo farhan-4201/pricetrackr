@@ -40,17 +40,23 @@ const scrapeProductPrice = async (marketplace, productUrl, productName) => {
 
     // Extract query from product name (first few words)
     const queryWords = productName.split(' ').slice(0, 3).join(' ');
+    console.log(`Searching ${marketplace} for: "${queryWords}"`);
+
     const result = await scraper(queryWords);
 
     if (result.success && result.products.length > 0) {
       // Find the best matching product
       const bestMatch = result.products[0]; // They are sorted by relevance
+      console.log(`Found best match: "${bestMatch.name}" - Rs. ${bestMatch.price}`);
       return bestMatch.price;
+    } else {
+      console.log(`No products found for "${queryWords}" on ${marketplace}`);
+      return null;
     }
   } catch (error) {
     console.error(`Error scraping ${marketplace} for ${productName}:`, error.message);
+    return null;
   }
-  return null;
 };
 
 // Main price monitoring function
@@ -91,7 +97,7 @@ const monitorPrices = async () => {
             type: 'price_drop',
             title: 'Price Drop Alert!',
             message: `${item.name} price dropped by Rs. ${priceDrop} (${percentageDrop}%). Now Rs. ${currentPrice}.`,
-            productId: item.productId
+            productIdentifier: item.productId
           });
 
           await notification.save();
@@ -134,6 +140,42 @@ PriceTrackr Team
           item.currentPrice = currentPrice;
           item.lastUpdated = new Date();
           await item.save();
+
+          // Send initial tracking confirmation email
+          try {
+            const user = await User.findById(item.userId);
+            if (user && user.emailAddress) {
+              const emailSubject = `Price Tracking Started: ${item.name}`;
+              const emailText = `
+Dear ${user.fullName},
+
+🎯 Price tracking has been successfully started for "${item.name}"!
+
+📋 Product Details:
+- Name: ${item.name}
+- Marketplace: ${item.marketplace}
+- Initial Price: Rs. ${currentPrice}
+- Product URL: ${item.url}
+
+⏰ Monitoring Status:
+We will monitor this product hourly and send you email notifications whenever the price drops.
+
+💡 What happens next:
+- You'll receive an email alert if the price decreases
+- You can manage your tracked products in your watchlist
+- You can disable tracking anytime if you no longer want updates
+
+Happy shopping!
+PriceTrackr Team
+              `;
+
+              await sendMail(user.emailAddress, emailSubject, emailText);
+              console.log(`Initial tracking email sent to ${user.emailAddress} for ${item.name}`);
+            }
+          } catch (emailError) {
+            console.error(`Failed to send initial tracking email for ${item.name}:`, emailError.message);
+            // Continue even if email fails
+          }
         }
 
         // Wait a bit between requests to avoid rate limiting
@@ -169,4 +211,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
     console.log('Price monitoring cron job started. Will run every hour.');
   });
+} else {
+  // When imported from server.js, start the cron scheduler
+  cron.schedule('0 * * * *', async () => {
+    await monitorPrices();
+  });
+
+  console.log('Price monitoring cron job scheduled to run every hour.');
 }

@@ -4,6 +4,7 @@ import { authenticate as auth } from "../middleware/auth.js";
 import SearchResult from "../models/search_result.js";
 import { scrapingRateLimiter } from "../middleware/rateLimiter.js";
 import { validateSearch } from "../middleware/validation.js";
+import { scraperController } from "../controllers/scraper.controller.js";
 
 /**
  * Normalize marketplace values to match schema enum
@@ -218,6 +219,9 @@ router.get("/:id/history", auth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch price history" });
   }
 });
+
+// Scrape products from all marketplaces
+router.post("/scrape", scrapingRateLimiter, validateSearch, scraperController);
 
 // Get saved search results
 router.get("/search-results", async (req, res) => {

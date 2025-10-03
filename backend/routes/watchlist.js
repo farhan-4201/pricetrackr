@@ -40,6 +40,7 @@ router.post("/", auth, async (req, res) => {
       category: req.body.category,
       currentPrice: req.body.currentPrice,
       url: req.body.url,
+      isTracking: req.body.isTracking !== undefined ? req.body.isTracking : false, // Default to false if not specified
       addedAt: new Date(),
       lastUpdated: new Date()
     });
@@ -50,15 +51,21 @@ router.post("/", auth, async (req, res) => {
 
     // Create watchlist notification
     try {
-      const notification = new Notification({
-        userId: req.user._id, // Note: using _id instead of userId to match notification model
-        type: 'watchlist',
-        title: 'Product Added to Watchlist',
-        message: `"${req.body.name}" has been added to your watchlist for price monitoring.`,
-        productId: req.body.productId
-      });
-      await notification.save();
-      console.log('Watchlist notification created successfully');
+      // Fetch the user from database to ensure they exist and get proper ObjectId
+      const user = await User.findById(req.user.userId);
+      if (!user) {
+        console.error('User not found in database:', req.user.userId);
+      } else {
+        const notification = new Notification({
+          userId: user._id, // Using the actual ObjectId from database
+          type: 'watchlist',
+          title: 'Product Added to Watchlist',
+          message: `"${req.body.name}" has been added to your watchlist for price monitoring.`,
+          productIdentifier: req.body.productId // Using the string identifier
+        });
+        await notification.save();
+        console.log('Watchlist notification created successfully');
+      }
     } catch (notificationError) {
       console.error('Error creating watchlist notification:', notificationError.message);
       // Don't fail the request if notification creation fails
@@ -66,13 +73,14 @@ router.post("/", auth, async (req, res) => {
 
     // Send email notification
     try {
-      const user = await User.findById(req.user._id);
+      const user = await User.findById(req.user.userId);
       if (user && user.emailAddress) {
+        const trackingStatus = watchlistItem.isTracking ? 'enabled' : 'disabled';
         const emailSubject = `Product Added to Watchlist: ${req.body.name}`;
         const emailText = `
 Dear ${user.fullName},
 
-You have successfully added "${req.body.name}" to your watchlist for price monitoring.
+You have successfully added "${req.body.name}" to your watchlist.
 
 Product Details:
 - Name: ${req.body.name}
@@ -80,7 +88,14 @@ Product Details:
 - Current Price: Rs. ${req.body.currentPrice || 'Not available'}
 - Product URL: ${req.body.url}
 
-You will receive email notifications when the price drops on this product.
+${watchlistItem.isTracking ?
+  `🎯 Price tracking is enabled! You will receive email notifications when the price drops.
+
+⏰ Monitoring Schedule:
+We will monitor this product hourly and notify you of any price changes.` :
+
+  `💡 Tip: You can enable price tracking anytime from your watchlist to receive email notifications when prices drop.`
+}
 
 You can view and manage your watchlist on the PriceTrackr dashboard.
 
@@ -119,6 +134,52 @@ router.put("/:id", auth, async (req, res) => {
 
     if (!updatedItem) {
       return res.status(404).json({ error: "Watchlist item not found" });
+    }
+
+    // Send email notification if tracking status changed
+    if (req.body.isTracking !== undefined) {
+      try {
+        const user = await User.findById(req.user.userId);
+        if (user && user.emailAddress) {
+          const trackingStatus = req.body.isTracking ? 'enabled' : 'disabled';
+          const emailSubject = `Price Tracking ${trackingStatus.charAt(0).toUpperCase() + trackingStatus.slice(1)}: ${updatedItem.name}`;
+          const emailText = `
+Dear ${user.fullName},
+
+Price tracking has been ${trackingStatus} for "${updatedItem.name}".
+
+${req.body.isTracking ?
+  `🎉 Great news! You will now receive email notifications when the price drops on this product.
+
+📋 Product Details:
+- Name: ${updatedItem.name}
+- Marketplace: ${updatedItem.marketplace}
+- Current Price: Rs. ${updatedItem.currentPrice || 'Not available'}
+- Product URL: ${updatedItem.url}
+
+⏰ Monitoring Schedule:
+We will monitor this product hourly and notify you immediately of any price changes.
+
+💡 Tip: You can manage your tracked products anytime from your watchlist dashboard.` :
+
+  `Price tracking has been disabled for this product.
+
+You will no longer receive email notifications for price changes on "${updatedItem.name}".
+
+You can re-enable tracking anytime from your watchlist.`
+}
+
+Best regards,
+PriceTrackr Team
+          `;
+
+          await sendMail(user.emailAddress, emailSubject, emailText);
+          console.log(`Tracking status email sent to ${user.emailAddress} for ${updatedItem.name}`);
+        }
+      } catch (emailError) {
+        console.error(`Failed to send tracking status email for ${updatedItem.name}:`, emailError.message);
+        // Don't fail the request if email sending fails
+      }
     }
 
     res.json(updatedItem);
