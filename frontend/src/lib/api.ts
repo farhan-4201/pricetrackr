@@ -272,6 +272,9 @@ class AuthenticatedApiClient extends ApiClient {
 export const apiClient = new ApiClient();
 export const authenticatedApiClient = new AuthenticatedApiClient();
 
+// Export as 'api' for backward compatibility
+export const api = authenticatedApiClient;
+
 export default apiClient;
 
 // Types

@@ -148,6 +148,35 @@ function calculateRelevance(productName, query) {
   const queryLower = query.toLowerCase();
   const queryWords = queryLower.split(/\s+/).filter(word => word.length > 1);
 
+  // Exclude accessories and irrelevant products
+  const accessoryKeywords = [
+    'protector', 'case', 'cover', 'charger', 'cable', 'adapter', 
+    'screen guard', 'tempered glass', 'holder', 'stand', 'mount',
+    'earphone', 'headphone', 'earbuds', 'airpods', 'pouch', 'bag',
+    'stylus', 'pen', 'cleaner', 'kit', 'tool', 'sticker', 'skin',
+    'strap', 'band', 'ring', 'grip', 'wallet', 'card holder',
+    'lens protector', 'camera protector', 'back cover', 'flip cover',
+    'bumper', 'shell', 'sleeve', 'jacket', 'armor', 'shield'
+  ];
+
+  // Check if product is an accessory
+  const isAccessory = accessoryKeywords.some(keyword => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(productName);
+  });
+
+  // If searching for main product (e.g., "iPhone 15 Pro Max"), exclude accessories
+  const isMainProductSearch = queryWords.some(word => 
+    ['iphone', 'samsung', 'galaxy', 'pixel', 'oneplus', 'xiaomi', 'oppo', 'vivo', 
+     'realme', 'huawei', 'nokia', 'motorola', 'laptop', 'macbook', 'tablet', 'ipad',
+     'watch', 'airpods', 'buds'].includes(word.toLowerCase())
+  );
+
+  if (isMainProductSearch && isAccessory) {
+    console.log(`Excluding accessory: "${productName}"`);
+    return 0;
+  }
+
   let score = 0;
   let matchedWords = 0;
 

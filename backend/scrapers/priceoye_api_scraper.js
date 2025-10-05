@@ -381,7 +381,7 @@ export class PriceOyeScraper {
   }
 
   /**
-   * Calculate relevance score with improved algorithm
+   * Calculate relevance score with improved algorithm and accessory filtering
    */
   calculateRelevance(productName, query) {
     if (!productName || !query) return 0;
@@ -396,10 +396,40 @@ export class PriceOyeScraper {
     const productNorm = normalize(productName);
     const queryNorm = normalize(query);
 
+    // Exclude accessories and irrelevant products
+    const accessoryKeywords = [
+      'protector', 'case', 'cover', 'charger', 'cable', 'adapter', 
+      'screen guard', 'tempered glass', 'holder', 'stand', 'mount',
+      'earphone', 'headphone', 'earbuds', 'airpods', 'pouch', 'bag',
+      'stylus', 'pen', 'cleaner', 'kit', 'tool', 'sticker', 'skin',
+      'strap', 'band', 'ring', 'grip', 'wallet', 'card holder',
+      'lens protector', 'camera protector', 'back cover', 'flip cover',
+      'bumper', 'shell', 'sleeve', 'jacket', 'armor', 'shield'
+    ];
+
+    // Check if product is an accessory
+    const isAccessory = accessoryKeywords.some(keyword => {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+      return regex.test(productName);
+    });
+
+    const queryWords = queryNorm.split(" ").filter((w) => w.length > 1);
+
+    // If searching for main product (e.g., "iPhone 15 Pro Max"), exclude accessories
+    const isMainProductSearch = queryWords.some(word => 
+      ['iphone', 'samsung', 'galaxy', 'pixel', 'oneplus', 'xiaomi', 'oppo', 'vivo', 
+       'realme', 'huawei', 'nokia', 'motorola', 'laptop', 'macbook', 'tablet', 'ipad',
+       'watch', 'airpods', 'buds'].includes(word.toLowerCase())
+    );
+
+    if (isMainProductSearch && isAccessory) {
+      Logger.debug(`Excluding accessory: "${productName}"`);
+      return 0;
+    }
+
     // Exact match gets highest score
     if (productNorm === queryNorm) return 100;
 
-    const queryWords = queryNorm.split(" ").filter((w) => w.length > 1);
     if (queryWords.length === 0) return 0;
 
     let score = 0;

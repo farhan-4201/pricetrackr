@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { ComparisonProvider } from '@/context/ComparisonContext';
 import { ComparisonFloatingPanel } from '@/components/ProductComparisonSelector';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useSearch } from '@/hooks/useSearch';
 import { SearchForm } from '@/components/SearchForm';
 import { SearchResults } from '@/components/SearchResults';
+import { useNavigate } from 'react-router-dom';
 
 export const SearchDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { scrapedProducts, loading, error, handleSearch } = useSearch();
+  const navigate = useNavigate();
 
   const onSearch = (query: string) => {
     setSearchQuery(query);
@@ -22,22 +24,15 @@ export const SearchDashboard = () => {
       <ComparisonProvider>
         <div>
           <div className="max-w-full">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-              <div className="mb-4 md:mb-0">
-                <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  Multi-Marketplace Product Search
-                </h1>
-                <p className="text-cyan-300 mt-2 text-base">
-                  Find the best deals across Daraz, PriceOye & more!
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button variant="cyber">
-                  <Search className="w-4 h-4 mr-2" />
-                  View Watchlist
-                </Button>
-              </div>
+            {/* Quick Actions */}
+            <div className="flex justify-end mb-6">
+              <Button 
+                onClick={() => navigate('/watchlist')}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <Heart className="w-4 h-4 mr-2" />
+                My Watchlist
+              </Button>
             </div>
 
             {/* Search Form */}

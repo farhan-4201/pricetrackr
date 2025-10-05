@@ -13,7 +13,6 @@ import { PageLoadingFallback } from "@/components/LoadingFallback";
 // Lazy load components for code splitting
 const Index = lazy(() => import("./pages/Index"));
 const Features = lazy(() => import("./pages/Features").then(module => ({ default: module.Features })));
-const Pricing = lazy(() => import("./pages/Pricing").then(module => ({ default: module.Pricing })));
 const About = lazy(() => import("./pages/About").then(module => ({ default: module.About })));
 const Signup = lazy(() => import("./pages/Signup"));
 const Signin = lazy(() => import("./pages/Signin"));
@@ -54,7 +53,6 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/features" element={<Features />} />
-                  <Route path="/pricing" element={<Pricing />} />
                   <Route path="/about" element={<About />} />
 
                   <Route

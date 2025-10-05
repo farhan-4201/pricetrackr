@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings as SettingsIcon, Bell, BellOff, Mail, MessageSquare, Shield, Save, Moon, Sun } from "lucide-react";
+import { Settings as SettingsIcon, Bell, BellOff, Mail, MessageSquare, Shield, Save, Moon, Sun, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { authenticatedApiClient } from "@/lib/api";
 
 export default function Settings() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -20,19 +22,39 @@ export default function Settings() {
     dataCollection: true,
   });
 
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await authenticatedApiClient.get('/users/settings');
+      if (response) {
+        setSettings(response as typeof settings);
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // Use default settings if loading fails
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Here you would save settings to the API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await authenticatedApiClient.put('/users/settings', settings);
       toast({
-        title: "Settings saved",
+        title: "✅ Settings saved",
         description: "Your preferences have been updated successfully",
       });
     } catch (error) {
+      console.error('Save settings error:', error);
       toast({
-        title: "Error",
-        description: "Failed to save settings",
+        title: "❌ Error",
+        description: error instanceof Error ? error.message : "Failed to save settings",
         variant: "destructive",
       });
     } finally {
