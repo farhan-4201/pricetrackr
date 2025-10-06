@@ -162,21 +162,21 @@ export const HeroSection = () => {
           {/* Enhanced main heading with multiple gradients and animations */}
           <div className="space-y-4">
             <div className="flex items-center justify-center mb-6">
-              <Sparkles className="w-8 h-8 text-cyan-400 mr-3 animate-spin" style={{ animationDuration: '3s' }} />
+              <Sparkles className="w-8 h-8 text-cyan-400 mr-3 animate-spin logo-pulse" style={{ animationDuration: '3s' }} />
               <span className="text-sm font-medium tracking-widest text-cyan-400/80 uppercase">
                 Next-Generation Price Intelligence
               </span>
-              <Sparkles className="w-8 h-8 text-purple-400 ml-3 animate-spin" style={{ animationDuration: '3s', animationDirection: 'reverse' }} />
+              <Sparkles className="w-8 h-8 text-purple-400 ml-3 animate-spin logo-pulse" style={{ animationDuration: '3s', animationDirection: 'reverse' }} />
             </div>
-            
+
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-tight">
-              <span className="block bg-gradient-to-r from-cyan-400 via-cyan-200 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(34,211,238,0.5)] animate-pulse">
+              <span className="block gradient-text-enhanced drop-shadow-[0_0_30px_rgba(34,211,238,0.5)] hover:scale-105 transition-transform duration-300 cursor-default">
                 Track Prices.
               </span>
-              <span className="block bg-gradient-to-r from-green-400 via-green-200 to-green-400 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(34,197,94,0.5)] animate-pulse" style={{ animationDelay: '0.5s' }}>
+              <span className="block gradient-text-enhanced drop-shadow-[0_0_30px_rgba(34,197,94,0.5)] hover:scale-105 transition-transform duration-300 cursor-default" style={{ animationDelay: '0.5s' }}>
                 Save Money.
               </span>
-              <span className="block bg-gradient-to-r from-purple-400 via-purple-200 to-purple-400 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] animate-pulse" style={{ animationDelay: '1s' }}>
+              <span className="block gradient-text-enhanced drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] hover:scale-105 transition-transform duration-300 cursor-default" style={{ animationDelay: '1s' }}>
                 Smarter Shopping
               </span>
             </h1>
@@ -185,9 +185,9 @@ export const HeroSection = () => {
           {/* Enhanced subtitle with glassmorphic background */}
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-sm rounded-2xl" />
-            <p className="relative text-lg sm:text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light px-6 py-4">
-              Harness the power of <span className="text-cyan-400 font-semibold">AI-driven analytics</span> to monitor prices across 
-              <span className="text-green-400 font-semibold"> Amazon, eBay, AliExpress</span>, and more. 
+            <p className="relative text-lg sm:text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light px-6 py-4" style={{ lineHeight: '1.8' }}>
+              Harness the power of <span className="text-cyan-400 font-semibold">AI-driven analytics</span> to monitor prices across
+              <span className="text-green-400 font-semibold"> Amazon, eBay, AliExpress</span>, and more.
               Get <span className="text-purple-400 font-semibold">intelligent alerts</span> and never overpay again.
             </p>
           </div>
@@ -197,30 +197,32 @@ export const HeroSection = () => {
             {FEATURES_CONFIG.map((feature, index) => {
               const IconComponent = feature.icon;
               return (
-                <div 
-                  key={feature.title} 
-                  className={`group relative backdrop-blur-xl bg-gradient-to-br ${feature.gradient} border ${feature.borderColor} rounded-2xl p-8 transition-all duration-500 hover:scale-105 ${feature.hoverGlow} hover:backdrop-blur-2xl cursor-pointer`}
-                  style={{ 
+                <div
+                  key={feature.title}
+                  className={`group relative backdrop-blur-xl bg-gradient-to-br ${feature.gradient} border ${feature.borderColor} rounded-2xl p-8 transition-all duration-500 hover-lift ${feature.hoverGlow} hover:backdrop-blur-2xl cursor-pointer scroll-reveal stagger-${index + 1}`}
+                  style={{
                     animationDelay: `${index * 200}ms`,
                     opacity: isVisible ? 1 : 0,
                     transform: isVisible ? 'translateY(0)' : 'translateY(20px)'
                   }}
                 >
-                  {/* Card glow effect */}
+                  {/* Enhanced card glow effect with gradient border */}
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+                  <div className="absolute inset-0 rounded-2xl glowing-border opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
                   <div className="relative z-10">
                     <div className="mb-6 relative">
-                      <div className={`absolute inset-0 ${feature.color} opacity-20 blur-xl rounded-full`} />
-                      <IconComponent 
-                        className={`relative h-12 w-12 ${feature.color} mx-auto drop-shadow-[0_0_15px_currentColor] group-hover:scale-110 transition-transform duration-300`}
+                      <div className={`absolute inset-0 ${feature.color} opacity-20 blur-xl rounded-full group-hover:opacity-30 transition-opacity duration-300`} />
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <IconComponent
+                        className={`relative h-12 w-12 ${feature.color} mx-auto drop-shadow-[0_0_15px_currentColor] group-hover:scale-125 group-hover:rotate-6 transition-all duration-300 float-enhanced`}
                         aria-hidden="true"
                       />
                     </div>
-                    <h2 className="font-bold text-xl mb-4 text-white group-hover:text-opacity-90 transition-colors">
+                    <h2 className="font-bold text-xl mb-4 text-white group-hover:text-cyan-300 transition-colors duration-300">
                       {feature.title}
                     </h2>
-                    <p className="text-slate-400 text-base leading-relaxed group-hover:text-slate-300 transition-colors">
+                    <p className="text-slate-400 text-base leading-relaxed group-hover:text-slate-300 transition-colors duration-300">
                       {feature.description}
                     </p>
                   </div>
@@ -231,23 +233,23 @@ export const HeroSection = () => {
 
           {/* Enhanced CTA buttons with advanced styling */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-            <Button 
-              className="group relative min-w-[240px] w-full sm:w-auto h-14 bg-gradient-to-r from-cyan-600 via-cyan-500 to-cyan-600 hover:from-cyan-500 hover:via-cyan-400 hover:to-cyan-500 text-white font-semibold text-lg transition-all duration-500 hover:scale-105 hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] border-0 rounded-xl overflow-hidden"
+            <Button
+              className="group relative ripple min-w-[240px] w-full sm:w-auto h-14 bg-gradient-to-r from-cyan-500 via-cyan-400 to-green-400 hover:from-cyan-400 hover:via-cyan-300 hover:to-green-300 text-white font-semibold text-lg transition-all duration-500 hover:scale-110 hover:shadow-[0_0_50px_rgba(34,211,238,0.8)] border-0 rounded-xl overflow-hidden focus-enhanced touch-target"
               aria-describedby="cta-description"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
               <span className="relative flex items-center justify-center gap-2">
-                <Zap className="w-5 h-5" />
-                Start Tracking Now
+                <Zap className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                Start Saving Today
               </span>
             </Button>
-            
-            <Button 
-              className="group relative min-w-[240px] w-full sm:w-auto h-14 bg-transparent hover:bg-white/5 text-white font-semibold text-lg transition-all duration-500 hover:scale-105 border-2 border-purple-500/50 hover:border-purple-400 rounded-xl backdrop-blur-sm hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]"
+
+            <Button
+              className="group relative min-w-[240px] w-full sm:w-auto h-14 bg-transparent hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-cyan-500/10 text-white font-semibold text-lg transition-all duration-500 hover:scale-105 border-2 border-purple-500/50 hover:border-purple-400 rounded-xl backdrop-blur-sm hover:shadow-[0_0_40px_rgba(168,85,247,0.6)] focus-enhanced touch-target glowing-border"
             >
               <span className="relative flex items-center justify-center gap-2">
-                <Eye className="w-5 h-5" />
-                View Live Demo
+                <Eye className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                Watch Demo
               </span>
             </Button>
           </div>

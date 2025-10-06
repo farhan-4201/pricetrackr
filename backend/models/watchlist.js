@@ -5,7 +5,7 @@ const WatchlistItemSchema = new mongoose.Schema({
   productId: { type: String, required: true }, // Unique identifier for the product across marketplaces
   name: { type: String, required: true },
   image: { type: String },
-  marketplace: { type: String, enum: ['daraz', 'priceoye', 'amazon', 'ebay', 'aliexpress'], required: true },
+  marketplace: { type: String, enum: ['daraz', 'priceoye', 'telemart', 'amazon', 'ebay', 'aliexpress'], required: true },
   category: { type: String },
   currentPrice: { type: Number },
   url: { type: String, required: true },

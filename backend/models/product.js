@@ -25,7 +25,7 @@ const ProductSchema = new mongoose.Schema({
   // Additional fields for enhanced tracking
   priceHistory: [PriceHistorySchema],
   alerts: [AlertSchema],
-  vendor: { type: String, enum: ['amazon', 'ebay', 'aliexpress', 'walmart', 'bestbuy', 'daraz', 'alibaba'], required: true },
+  vendor: { type: String, enum: ['amazon', 'ebay', 'aliexpress', 'walmart', 'bestbuy', 'daraz', 'priceoye', 'telemart', 'alibaba'], required: true },
   imageUrl: { type: String },
   category: { type: String },
 

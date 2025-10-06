@@ -8,23 +8,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { BarChart, Menu, Bell, User, LogOut, X, Settings, Heart } from "lucide-react";
+import { BarChart, Menu, Bell, User, LogOut, X, Settings, Heart, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const location = useLocation();
   const { user, isAuthenticated, signout } = useAuth();
+
+  // Theme toggle handler
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    // Apply theme to document
+    document.documentElement.classList.toggle('dark', isDarkMode);
+  };
 
   const navLinks = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/features", label: "Features" },
-    { to: "/pricing", label: "Pricing" },
     { to: "/about", label: "About" },
   ];
+
+  // Theme toggle handler
+  const handleToggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    // Apply theme to document
+    document.documentElement.classList.toggle('dark');
+  };
 
   // Close mobile menu on escape key
   useEffect(() => {
@@ -81,7 +96,7 @@ export const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group cursor-pointer">
             <div
-              className="p-2 rounded-lg transition-all duration-300 group-hover:scale-110"
+              className="p-2 rounded-lg transition-all duration-300 group-hover:scale-110 logo-pulse"
               style={{
                 background: "rgba(34, 211, 238, 0.1)",
                 boxShadow: "0 0 20px rgba(34, 211, 238, 0.3)",
@@ -99,48 +114,54 @@ export const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  `relative px-4 py-2 rounded-lg transition-all duration-300 group ${
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.to;
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={`relative px-4 py-2 rounded-lg transition-all duration-300 group focus-enhanced touch-target ${
                     isActive
-                      ? "text-cyan-400 bg-[rgba(34,211,238,0.1)]"
-                      : "text-slate-300 hover:text-cyan-400"
-                  }`
-                }
-              >
-                {link.label}
-                <div
-                  className="absolute bottom-0 left-1/2 h-0.5 bg-gradient-to-r from-cyan-400 to-green-400 transition-all duration-300 w-0 -translate-x-1/2 group-hover:w-3/4"
-                />
-              </NavLink>
-            ))}
+                      ? "text-cyan-400 bg-[rgba(34,211,238,0.1)] glowing-border"
+                      : "text-slate-300 hover:text-cyan-400 hover:bg-[rgba(34,211,238,0.05)]"
+                  }`}
+                >
+                  {link.label}
+                  <div
+                    className={`absolute bottom-0 left-1/2 h-0.5 bg-gradient-to-r from-cyan-400 to-green-400 transition-all duration-300 -translate-x-1/2 ${
+                      isActive ? 'w-3/4' : 'w-0 group-hover:w-3/4'
+                    }`}
+                  />
+                </NavLink>
+              );
+            })}
           </div>
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={handleToggleTheme}
+              className={`theme-toggle ${isDarkMode ? '' : 'active'} focus-enhanced`}
+              aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
             {/* Show authenticated UI if user is authenticated */}
             {isAuthenticated && user ? (
               <>
                 {/* Notifications */}
-                <button
-                  className="p-2 rounded-lg text-slate-300 hover:text-cyan-400 transition-all duration-300 hover:scale-110 relative"
-                  style={{ background: "rgba(255, 255, 255, 0.05)" }}
-                >
-                  <Bell className="h-5 w-5" />
-                  {/* Notification dot */}
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-slate-900"></div>
-                </button>
+                <NotificationDropdown />
 
                 {/* User Avatar with Dropdown - Force show even without user object */}
                 <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <button 
-                      className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-cyan-400/30 transition-all duration-300 hover:scale-110 hover:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900"
+                    <button
+                      className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-cyan-400/30 transition-all duration-300 hover:scale-110 hover:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 group"
                       aria-label="Open user menu"
                     >
+                      <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 glowing-border" />
                       <Avatar className="h-full w-full">
                         <AvatarImage
                           src={user?.profilePicture ? `/${user.profilePicture}` : undefined}
@@ -150,7 +171,7 @@ export const Navbar = () => {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
-                        <AvatarFallback 
+                        <AvatarFallback
                           className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white text-sm font-semibold border-0"
                           style={{
                             background: "linear-gradient(135deg, #22d3ee, #3b82f6)",
@@ -304,22 +325,23 @@ export const Navbar = () => {
           onClick={() => setIsMenuOpen(false)}
         >
           <div className="pt-20 px-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) =>
-                  `block px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 ${
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.to;
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 ${
                     isActive
                       ? "text-cyan-400 bg-[rgba(34,211,238,0.1)]"
                       : "text-slate-300 bg-[rgba(255,255,255,0.05)]"
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
+                  }`}
+                >
+                  {link.label}
+                </NavLink>
+              );
+            })}
 
             {isAuthenticated && user ? (
               <>

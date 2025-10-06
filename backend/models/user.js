@@ -54,6 +54,18 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
     trim: true
+  },
+  settings: {
+    type: Object,
+    default: {
+      emailNotifications: true,
+      smsNotifications: false,
+      priceAlerts: true,
+      productUpdates: true,
+      darkMode: true,
+      emailMarketing: false,
+      dataCollection: true,
+    }
   }
 }, {
   timestamps: false // We manage createdAt manually

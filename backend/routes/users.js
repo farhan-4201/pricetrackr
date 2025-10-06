@@ -142,6 +142,58 @@ router.post("/logout", authenticate, (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
+// Get user settings
+router.get("/settings", authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Return user settings or defaults
+    const settings = user.settings || {
+      emailNotifications: true,
+      smsNotifications: false,
+      priceAlerts: true,
+      productUpdates: true,
+      darkMode: true,
+      emailMarketing: false,
+      dataCollection: true,
+    };
+    
+    res.json(settings);
+  } catch (error) {
+    console.error("Get settings error:", error);
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+// Update user settings
+router.put("/settings", authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Update settings
+    user.settings = {
+      ...user.settings,
+      ...req.body
+    };
+    
+    await user.save();
+    
+    res.json({
+      message: "Settings updated successfully",
+      settings: user.settings
+    });
+  } catch (error) {
+    console.error("Update settings error:", error);
+    res.status(500).json({ error: "Failed to update settings" });
+  }
+});
+
 // Google OAuth routes
 router.get("/auth/google",
   passport.authenticate("google", { scope: ["profile", "email"] })

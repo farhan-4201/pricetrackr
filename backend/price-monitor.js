@@ -196,26 +196,34 @@ PriceTrackr Team
 // Export the monitoring function for manual testing if needed
 export { monitorPrices };
 
+// Function to start the cron job
+export const startPriceMonitoring = () => {
+  // Schedule to run every hour at minute 0
+  cron.schedule('0 * * * *', async () => {
+    console.log('🔄 Running scheduled price monitoring job...');
+    await monitorPrices();
+  });
+
+  console.log('✅ Price monitoring cron job scheduled to run every hour (0 * * * *)');
+  console.log('⏰ Next run will be at the top of the next hour');
+  
+  // Run immediately on startup to check prices
+  console.log('🚀 Running initial price check...');
+  setTimeout(() => {
+    monitorPrices().catch(err => {
+      console.error('Error in initial price monitoring:', err);
+    });
+  }, 5000); // Wait 5 seconds after server start
+};
+
 // Run the job every hour (for testing, adjust as needed)
 if (import.meta.url === `file://${process.argv[1]}`) {
   // Load environment variables
   import('dotenv').then(({ default: dotenv }) => {
     dotenv.config();
-    connectDB();
-    monitorPrices();
-
-    // Schedule to run every hour at minute 0
-    cron.schedule('0 * * * *', async () => {
-      await monitorPrices();
+    connectDB().then(() => {
+      console.log('📊 Running price monitoring in standalone mode...');
+      monitorPrices();
     });
-
-    console.log('Price monitoring cron job started. Will run every hour.');
   });
-} else {
-  // When imported from server.js, start the cron scheduler
-  cron.schedule('0 * * * *', async () => {
-    await monitorPrices();
-  });
-
-  console.log('Price monitoring cron job scheduled to run every hour.');
 }

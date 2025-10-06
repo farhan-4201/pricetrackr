@@ -25,13 +25,37 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
     handleKeyDown,
   } = useSearchSuggestions({ searchQuery, onSearch, setSearchQuery });
 
-  const handleSearchClick = () => {
-    saveRecentSearch(searchQuery);
-    onSearch(searchQuery);
+  const handleSearchClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const trimmedQuery = searchQuery.trim();
+    
+    if (!trimmedQuery || loading) {
+      return;
+    }
+    
+    console.log('[SearchForm] Search button clicked with query:', trimmedQuery);
+    saveRecentSearch(trimmedQuery);
+    onSearch(trimmedQuery);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const trimmedQuery = searchQuery.trim();
+    
+    if (!trimmedQuery || loading) {
+      return;
+    }
+    
+    console.log('[SearchForm] Form submitted with query:', trimmedQuery);
+    saveRecentSearch(trimmedQuery);
+    onSearch(trimmedQuery);
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 mb-8 animated-border p-1 rounded-xl">
+    <form onSubmit={handleFormSubmit} className="flex flex-col lg:flex-row gap-4 mb-8 animated-border p-1 rounded-xl">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
@@ -107,6 +131,6 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
           </>
         )}
       </Button>
-    </div>
+    </form>
   );
 };

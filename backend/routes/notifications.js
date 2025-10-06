@@ -4,6 +4,20 @@ import { authenticate as auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// Get notification count (must be before /:id routes)
+router.get("/count", auth, async (req, res) => {
+  try {
+    const unreadCount = await Notification.countDocuments({
+      userId: req.user._id,
+      isRead: false
+    });
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error("Notification count error:", error);
+    res.status(500).json({ error: "Failed to get notification count" });
+  }
+});
+
 // Get all notifications for current user
 router.get("/", auth, async (req, res) => {
   try {
@@ -68,20 +82,6 @@ router.delete("/:id", auth, async (req, res) => {
   } catch (error) {
     console.error("Delete notification error:", error);
     res.status(500).json({ error: "Failed to delete notification" });
-  }
-});
-
-// Get notification count
-router.get("/count", auth, async (req, res) => {
-  try {
-    const unreadCount = await Notification.countDocuments({
-      userId: req.user._id,
-      isRead: false
-    });
-    res.json({ unreadCount });
-  } catch (error) {
-    console.error("Notification count error:", error);
-    res.status(500).json({ error: "Failed to get notification count" });
   }
 });
 

@@ -40,6 +40,7 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
   const [error, setError] = useState<string>("");
   const [lastSearchedQuery, setLastSearchedQuery] = useState<string>("");
   const [noResultsMarketplaces, setNoResultsMarketplaces] = useState<string[]>([]);
+  const [currentMarketplace, setCurrentMarketplace] = useState<string>("");
   const productContainerRef = useRef<HTMLDivElement>(null);
 
   // Effect to use initialProducts when passed
@@ -65,21 +66,53 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
           sendWebSocketMessage(trimmedQuery);
         },
         (data) => {
-          setLoading(false);
-          if (data.products) {
-            setProducts(data.products);
-          }
-          if (data.noResultsMarketplaces) {
-            setNoResultsMarketplaces(data.noResultsMarketplaces);
+          switch (data.type) {
+            case 'RESULT':
+              // Add new products from this marketplace to the existing products
+              if (data.payload.products && data.payload.products.length > 0) {
+                setProducts(prevProducts => {
+                  // Filter out existing products from the same marketplace to avoid duplicates
+                  const filteredProducts = prevProducts.filter(p => p.marketplace !== data.payload.marketplace);
+                  return [...filteredProducts, ...data.payload.products];
+                });
+              }
+              setCurrentMarketplace(data.payload.marketplace);
+              break;
+
+            case 'NO_RESULTS':
+              // Track marketplaces with no results
+              setNoResultsMarketplaces(prev => {
+                if (!prev.includes(data.payload.marketplace)) {
+                  return [...prev, data.payload.marketplace];
+                }
+                return prev;
+              });
+              setCurrentMarketplace(data.payload.marketplace);
+              break;
+
+            case 'ERROR':
+              setError(`Error from ${data.payload.marketplace}: ${data.payload.message}`);
+              setCurrentMarketplace(data.payload.marketplace);
+              break;
+
+            case 'DONE':
+              // Search is complete
+              setLoading(false);
+              console.log('Search completed');
+              break;
+
+            default:
+              console.warn('Unknown WebSocket message type:', data);
           }
         },
         (error) => {
           setLoading(false);
-          setError('WebSocket error');
+          setError('WebSocket connection error');
           console.error('WebSocket error:', error);
         },
         () => {
           console.log('WebSocket disconnected');
+          setLoading(false);
         }
       );
     } else if (!trimmedQuery) {
@@ -238,39 +271,6 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
           )}
 
           <div className="mb-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-              <h3 className="text-xl font-semibold text-white">
-                Search Results for "{lastSearchedQuery}"
-              </h3>
-              {products.length > 0 && (
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div>
-                      <p className="text-sm text-slate-400">Total Products</p>
-                      <p className="text-lg font-bold text-cyan-400">{products.length}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Marketplaces</p>
-                      <p className="text-lg font-bold text-green-400">
-                        {new Set(products.map(p => p.marketplace)).size}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Avg Price</p>
-                      <p className="text-lg font-bold text-yellow-400">
-                        Rs. {Math.round(products.reduce((sum, p) => sum + (p.price || 0), 0) / products.length).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Price Range</p>
-                      <p className="text-lg font-bold text-purple-400">
-                        Rs. {Math.round(Math.min(...products.map(p => p.price || Infinity))).toLocaleString()} - {Math.round(Math.max(...products.map(p => p.price || 0))).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Group products by marketplace */}
             <div ref={productContainerRef}>
@@ -327,7 +327,7 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
                         </div>
                       ) : (
                         <>
-                          {/* Products Grid - 3 columns on desktop, consistent dimensions, showing max 3 products */}
+                          {/* Products Grid - 3 columns on desktop, showing max 3 products */}
                           <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-6">
                             {marketplaceProducts.slice(0, 3).map((product, index) => (
                               <div key={`${product.marketplace}-${product.name}-${index}`} className="product-card">
@@ -348,15 +348,6 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
                               </div>
                             ))}
                           </div>
-
-                          {/* Show message if more products available */}
-                          {marketplaceProducts.length > 3 && (
-                            <div className="text-center mt-4">
-                              <p className="text-sm text-slate-400">
-                                Showing 3 of {marketplaceProducts.length} products from {marketplace}
-                              </p>
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
