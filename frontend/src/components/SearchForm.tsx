@@ -28,13 +28,13 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
   const handleSearchClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const trimmedQuery = searchQuery.trim();
-    
+
     if (!trimmedQuery || loading) {
       return;
     }
-    
+
     console.log('[SearchForm] Search button clicked with query:', trimmedQuery);
     saveRecentSearch(trimmedQuery);
     onSearch(trimmedQuery);
@@ -55,7 +55,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="flex flex-col lg:flex-row gap-4 mb-8 animated-border p-1 rounded-xl">
+    <form onSubmit={handleFormSubmit} className="flex flex-col lg:flex-row gap-4 mb-8 p-1 rounded-xl border-2 border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
@@ -104,7 +104,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
         type="button"
         onClick={handleSearchClick}
         disabled={loading || !searchQuery.trim()}
-        className={`py-6 px-8 text-lg font-bold hover-scale breath-glow ${
+        className={`py-6 px-8 text-lg font-bold ${
           loading || !searchQuery.trim() ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         style={{
@@ -117,6 +117,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
           boxShadow: loading || !searchQuery.trim()
             ? 'none'
             : '0 10px 40px rgba(34, 211, 238, 0.3)',
+          pointerEvents: loading || !searchQuery.trim() ? 'none' : 'auto',
         }}
       >
         {loading ? (

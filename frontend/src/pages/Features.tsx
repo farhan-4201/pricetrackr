@@ -31,7 +31,7 @@ export const Features = () => {
       title: "Product Search",
       description: "Search and discover products on your favorite marketplaces",
       details: [
-        "Easy search across multiple marketplaces including Daraz, Amazon, and more",
+        "Easy search across multiple marketplaces including Daraz , PriceOye and Telemart",
         "Detailed product information including prices, ratings, and availability",
         "Real-time updates to ensure accurate pricing information"
       ],

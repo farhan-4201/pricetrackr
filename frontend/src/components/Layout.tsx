@@ -12,7 +12,7 @@ const Footer = () => {
       }}
     >
       <div className="container mx-auto max-w-7xl">
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-3 gap-8">
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
@@ -30,7 +30,7 @@ const Footer = () => {
           <div className="space-y-4">
             <h4 className="font-semibold text-white">Quick Links</h4>
             <div className="space-y-2">
-              {["/features", "/pricing", "/about"].map((to) => (
+              {["/features", "/about"].map((to) => (
                 <Link
                   key={to}
                   to={to}
@@ -43,37 +43,25 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Support */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-white">Support</h4>
-            <div className="space-y-2">
-              {["Help Center", "Documentation", "API", "Status"].map((link) => (
-                <a
-                  key={link}
-                  href="#"
-                  className="block text-slate-400 hover:text-cyan-400 transition-colors text-sm"
-                >
-                  {link}
-                </a>
-              ))}
-            </div>
-          </div>
+
 
           {/* Legal */}
           <div className="space-y-4">
             <h4 className="font-semibold text-white">Legal</h4>
             <div className="space-y-2">
-              {["Privacy Policy", "Terms of Service", "Cookie Policy"].map(
-                (link) => (
-                  <a
-                    key={link}
-                    href="#"
-                    className="block text-slate-400 hover:text-cyan-400 transition-colors text-sm"
-                  >
-                    {link}
-                  </a>
-                )
-              )}
+              {[
+                { name: "Privacy Policy", path: "/privacy-policy" },
+                { name: "Terms of Service", path: "/terms-of-service" },
+                { name: "Cookie Policy", path: "/cookie-policy" }
+              ].map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="block text-slate-400 hover:text-cyan-400 transition-colors text-sm"
+                >
+                  {link.name}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
