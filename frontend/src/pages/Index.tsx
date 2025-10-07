@@ -205,18 +205,7 @@ export const Index = () => {
                   Get Started Free
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="px-12 py-4 text-lg font-medium transition-all duration-300"
-                  style={{
-                    background: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid rgba(168, 85, 247, 0.3)",
-                    color: "#a855f7"
-                  }}
-                >
-                  View Pricing
-                </Button>
+
               </div>
 
               <div className="flex justify-center items-center space-x-6 text-sm text-slate-400">

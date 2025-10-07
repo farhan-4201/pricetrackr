@@ -22,6 +22,10 @@ const WatchlistPage = lazy(() => import("./pages/WatchlistPage"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Notifications = lazy(() => import("./pages/Notifications"));
+
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -98,6 +102,12 @@ const App = () => (
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/signin" element={<Signin />} />
                   <Route path="/auth/google" element={<GoogleAuth />} />
+
+                  {/* Footer Pages */}
+                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/terms-of-service" element={<TermsOfService />} />
+                  <Route path="/cookie-policy" element={<CookiePolicy />} />
+
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
