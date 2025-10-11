@@ -1,29 +1,132 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const productRoutes = require("./backend/routes/products");
-const userRoutes = require("./backend/routes/users");
-require("dotenv").config();
+import 'dotenv/config';
+import express from "express";
+import session from "express-session";
+import helmet from "helmet";
+import cors from "cors";
+import winston from "winston";
+import connectDB from "./db.js";
+import usersRouter from "./routes/users.js";
+import productsRouter from "./routes/products.js";
+import notificationsRouter from "./routes/notifications.js";
+import watchlistRouter from "./routes/watchlist.js";
+import passport from "./middleware/googleAuth.js";
+import { createWebSocketServer } from './websocket.js';
+import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+import { startPriceMonitoring } from './price-monitor.js';
+
+// Winston logging setup
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'price-tracker-backend' },
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple(),
+  }));
+}
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  logger.info(`Server started on port ${PORT}`);
+});
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+createWebSocketServer(server);
+
+connectDB().then(() => {
+  // Start the price monitoring cronjob after successful DB connection
+  logger.info('Starting price monitoring cronjob...');
+  startPriceMonitoring();
+  logger.info('Price monitoring cronjob started successfully');
+}).catch((error) => {
+  logger.error('Failed to start price monitoring cronjob:', error);
+});
+
+// Security and general middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:5174",
+  credentials: true
+}));
+
+// Passport and session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// Apply rate limiting to all requests
+app.use('/api/', apiRateLimiter);
+
+// Request logging middleware
+app.use('/api/', (req, res, next) => {
+  logger.info('API Request', {
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  next();
+});
 
 // Routes
-app.use("/api/products", productRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/v1/users", usersRouter);
+app.use("/api/v1/products", productsRouter);
+app.use("/api/v1/notifications", notificationsRouter);
+app.use("/api/v1/watchlist", watchlistRouter);
 
-// MongoDB Connection
-mongoose
-  .connect("mongodb://127.0.0.1:27017/price_tracker", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
 
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// Catch all handler for unknown routes
+app.use("*", (req, res) => {
+  res.status(404).json({ error: "Endpoint not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  logger.error('Global error handler', {
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip
+  });
+
+  res.status(500).json({
+    error: "Internal server error",
+    message: process.env.NODE_ENV === "development" ? err.message : "Something went wrong"
+  });
+});
+
+// Make logger available globally
+global.logger = logger;
