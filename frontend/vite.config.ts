@@ -9,4 +9,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    cors: {
+      origin: [
+        "https://www.smartpricetracker.me",
+        "https://smartpricetracker.me",
+      ],
+      credentials: true,
+    },
+  },
+  preview: {
+    cors: {
+      origin: [
+        "https://www.smartpricetracker.me",
+        "https://smartpricetracker.me",
+      ],
+      credentials: true,
+    },
+  },
 });
