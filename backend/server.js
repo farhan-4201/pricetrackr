@@ -11,7 +11,8 @@ import notificationsRouter from "./routes/notifications.js";
 import watchlistRouter from "./routes/watchlist.js";
 import passport from "./middleware/googleAuth.js";
 import { createWebSocketServer } from './websocket.js';
-import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+// 🔄 CHANGED THIS LINE 👇
+import { createRateLimiters } from "./middleware/rateLimiter.js";
 import { startPriceMonitoring } from './price-monitor.js';
 
 // Winston logging setup
@@ -36,16 +37,23 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 const app = express();
+
+// ✅ THIS MUST BE CALLED BEFORE USING req.ip in middleware
+app.set('trust proxy', true);
+
+// 🔄 CREATE RATE LIMITERS *AFTER* setting trust proxy
+const { apiRateLimiter, authRateLimiter, scrapingRateLimiter } = createRateLimiters();
+
 const PORT = process.env.PORT || 8000;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   logger.info(`Server started on port ${PORT}`);
 });
 
+// ✅ WebSocket server and DB connection
 createWebSocketServer(server);
 
 connectDB().then(() => {
-  // Start the price monitoring cronjob after successful DB connection
   logger.info('Starting price monitoring cronjob...');
   startPriceMonitoring();
   logger.info('Price monitoring cronjob started successfully');
@@ -53,7 +61,7 @@ connectDB().then(() => {
   logger.error('Failed to start price monitoring cronjob:', error);
 });
 
-// Security and general middleware
+// ✅ Helmet middleware for security headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -64,12 +72,26 @@ app.use(helmet({
     },
   },
 }));
+
+// ✅ ✅ ✅ CORS FIX STARTS HERE
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(',').map(origin => origin.trim());
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:5174",
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
-// Passport and session middleware
+// ✅ ✅ ✅ CORS FIX ENDS HERE
+
+// ✅ Session and Passport setup
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
@@ -82,10 +104,11 @@ app.use(passport.session());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Apply rate limiting to all requests
+// ✅ Rate limiting — now correctly initialized
 app.use('/api/', apiRateLimiter);
+// If you want to use auth limiter for specific auth routes, you can apply it like:
+// app.use('/api/v1/users/login', authRateLimiter);
 
-// Request logging middleware
 app.use('/api/', (req, res, next) => {
   logger.info('API Request', {
     method: req.method,
@@ -96,23 +119,23 @@ app.use('/api/', (req, res, next) => {
   next();
 });
 
-// Routes
+// ✅ Routes
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/notifications", notificationsRouter);
 app.use("/api/v1/watchlist", watchlistRouter);
 
-// Health check
+// ✅ Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Catch all handler for unknown routes
+// ✅ 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({ error: "Endpoint not found" });
 });
 
-// Global error handler
+// ✅ Global error handler
 app.use((err, req, res, next) => {
   logger.error('Global error handler', {
     error: err.message,
@@ -128,5 +151,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Make logger available globally
 global.logger = logger;
