@@ -55,7 +55,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="flex flex-col lg:flex-row gap-4 mb-8 p-1 rounded-xl border-2 border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50">
+    <form onSubmit={handleFormSubmit} className="flex flex-col md:flex-row gap-3 mb-6 p-1 rounded-xl border-2 border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
@@ -65,7 +65,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
-          className="pl-10 pr-4 py-6 text-lg border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50 glass-card text-white placeholder-cyan-300/50 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 hover-scale"
+          className="pl-10 pr-4 py-4 md:py-5 text-base md:text-lg border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50 glass-card text-white placeholder-cyan-300/50 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 hover-scale w-full"
         />
 
         {showSuggestions && suggestions.length > 0 && (
@@ -104,7 +104,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
         type="button"
         onClick={handleSearchClick}
         disabled={loading || !searchQuery.trim()}
-        className={`py-6 px-8 text-lg font-bold ${
+        className={`py-3 md:py-5 px-6 md:px-8 text-base md:text-lg font-bold w-full md:w-auto ${
           loading || !searchQuery.trim() ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         style={{
@@ -112,7 +112,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
             ? 'rgba(107, 114, 128, 0.5)'
             : 'linear-gradient(135deg, #22d3ee, #22c55e)',
           border: 'none',
-          minWidth: '140px',
+          minWidth: '120px',
           borderRadius: '0.75rem',
           boxShadow: loading || !searchQuery.trim()
             ? 'none'

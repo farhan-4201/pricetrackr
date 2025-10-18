@@ -113,7 +113,6 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: "1px solid rgba(255, 255, 255, 0.1)",
-        minHeight: "420px",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -131,7 +130,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         <img
           src={product.image}
           alt={product.name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-40 sm:h-44 md:h-48 lg:h-56 object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
         {/* Wishlist Button */}

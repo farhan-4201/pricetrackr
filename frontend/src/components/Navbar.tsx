@@ -84,7 +84,7 @@ export const Navbar = () => {
     <>
       {/* Glassmorphic Navbar */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 px-4 py-3 md:px-6 md:py-4"
+        className="fixed top-0 left-0 right-0 z-50 px-3 py-2 md:px-6 md:py-4"
         style={{
           background: "rgba(2, 6, 23, 0.8)",
           backdropFilter: "blur(12px)",
