@@ -11,11 +11,10 @@ import notificationsRouter from "./routes/notifications.js";
 import watchlistRouter from "./routes/watchlist.js";
 import passport from "./middleware/googleAuth.js";
 import { createWebSocketServer } from './websocket.js';
-// 🔄 CHANGED THIS LINE 👇
 import { createRateLimiters } from "./middleware/rateLimiter.js";
 import { startPriceMonitoring } from './price-monitor.js';
 
-// Winston logging setup
+// 🪵 Logger setup with Winston
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
@@ -29,39 +28,38 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'combined.log' }),
   ],
 });
-
 if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple(),
-  }));
+  logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
 const app = express();
 
-// ✅ THIS MUST BE CALLED BEFORE USING req.ip in middleware
+// ✅ Must come before any proxy-dependent middleware
 app.set('trust proxy', true);
 
-// 🔄 CREATE RATE LIMITERS *AFTER* setting trust proxy
+// ✅ Create rate limiters
 const { apiRateLimiter, authRateLimiter, scrapingRateLimiter } = createRateLimiters();
 
+// ✅ Start server
 const PORT = process.env.PORT || 8000;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   logger.info(`Server started on port ${PORT}`);
 });
 
-// ✅ WebSocket server and DB connection
+// ✅ Init WebSocket and DB
 createWebSocketServer(server);
+connectDB()
+  .then(() => {
+    logger.info('Starting price monitoring cronjob...');
+    startPriceMonitoring();
+    logger.info('Price monitoring cronjob started successfully');
+  })
+  .catch((error) => {
+    logger.error('Failed to start price monitoring cronjob:', error);
+  });
 
-connectDB().then(() => {
-  logger.info('Starting price monitoring cronjob...');
-  startPriceMonitoring();
-  logger.info('Price monitoring cronjob started successfully');
-}).catch((error) => {
-  logger.error('Failed to start price monitoring cronjob:', error);
-});
-
-// ✅ Helmet middleware for security headers
+// ✅ Security headers with Helmet
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -73,42 +71,51 @@ app.use(helmet({
   },
 }));
 
-// ✅ ✅ ✅ CORS FIX STARTS HERE
-
+// ✅ CORS setup — logs and restricts origins from .env
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(',').map(origin => origin.trim());
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    console.log("🧾 Incoming Origin:", origin);
+  }
+  next();
+});
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // server-to-server or curl
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
+      return callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn("❌ Blocked by CORS:", origin);
+      return callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true
 }));
 
-// ✅ ✅ ✅ CORS FIX ENDS HERE
-
-// ✅ Session and Passport setup
+// ✅ Session & Passport
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true in production with HTTPS
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ✅ Body parsers
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Rate limiting — now correctly initialized
+// ✅ Rate limiting
 app.use('/api/', apiRateLimiter);
-// If you want to use auth limiter for specific auth routes, you can apply it like:
-// app.use('/api/v1/users/login', authRateLimiter);
 
+// ✅ Log every API request
 app.use('/api/', (req, res, next) => {
   logger.info('API Request', {
     method: req.method,
@@ -125,7 +132,7 @@ app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/notifications", notificationsRouter);
 app.use("/api/v1/watchlist", watchlistRouter);
 
-// ✅ Health check
+// ✅ Health check route
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
@@ -151,4 +158,5 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ✅ Export logger globally (optional)
 global.logger = logger;
