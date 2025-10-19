@@ -233,12 +233,6 @@ npm run price-monitor
 cd frontend
 npm run dev
 ```
-
-### 6️⃣ Access the Application
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
-- **API Documentation**: http://localhost:5000/api-docs
-
 ### Live URLs
 - **Backend (production)**: https://api.smartpricetracker.me/
 - **Frontend (production)**: https://pricetrackr-woad.vercel.app/
