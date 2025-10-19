@@ -239,6 +239,11 @@ npm run dev
 - **Backend API**: http://localhost:5000
 - **API Documentation**: http://localhost:5000/api-docs
 
+### Live URLs
+- **Backend (production)**: https://api.smartpricetracker.me/
+- **Frontend (production)**: https://pricetrackr-woad.vercel.app/
+- **MongoDB (Atlas)**: mongodb+srv://farhan:farhan123@cluster0.c5jz8kc.mongodb.net/Pricetracker
+
 ---
 
 ## 📋 API Endpoints
