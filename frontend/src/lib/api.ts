@@ -100,7 +100,8 @@ class ApiClient {
 
   constructor() {
     this.config = {
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+      baseURL: import.meta.env.VITE_API_BASE_URL ||
+               (import.meta.env.PROD ? 'https://smartpricetracker.me' : 'http://localhost:8000'),
       version: import.meta.env.VITE_API_VERSION || 'v1',
       timeout: parseInt(import.meta.env.VITE_DEFAULT_TIMEOUT || '30000'),
       maxRetries: parseInt(import.meta.env.VITE_MAX_RETRIES || '3'),
