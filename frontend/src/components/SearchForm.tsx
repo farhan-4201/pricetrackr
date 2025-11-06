@@ -77,25 +77,68 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
               WebkitBackdropFilter: 'blur(12px)',
             }}
           >
-            <div className="p-2 border-b border-gray-700">
-              <div className="flex items-center space-x-2 text-gray-400 text-sm">
-                <Clock className="w-4 h-4" />
-                <span>Recent searches</span>
-              </div>
-            </div>
+            {/* Product suggestions section */}
+            {suggestions.some(s => s.type === 'product') && (
+              <>
+                <div className="p-2 border-b border-gray-700">
+                  <div className="flex items-center space-x-2 text-cyan-400 text-sm">
+                    <Search className="w-4 h-4" />
+                    <span>Product suggestions</span>
+                  </div>
+                </div>
+                {suggestions
+                  .filter(s => s.type === 'product')
+                  .map((suggestion, index) => (
+                    <div
+                      key={`product-${suggestion.text}`}
+                      className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-gray-700 transition-colors ${
+                        index === selectedSuggestionIndex ? 'bg-gray-700 text-cyan-400' : 'text-white'
+                      }`}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      <Search className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <span className="truncate flex-1">{suggestion.text}</span>
+                      {suggestion.marketplace && (
+                        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                          {suggestion.marketplace}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+              </>
+            )}
 
-            {suggestions.map((suggestion, index) => (
-              <div
-                key={suggestion}
-                className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-gray-700 transition-colors ${
-                  index === selectedSuggestionIndex ? 'bg-gray-700 text-cyan-400' : 'text-white'
-                }`}
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="truncate">{suggestion}</span>
-              </div>
-            ))}
+            {/* Recent searches section */}
+            {suggestions.some(s => s.type === 'recent') && (
+              <>
+                {(suggestions.some(s => s.type === 'product')) && (
+                  <div className="border-t border-gray-700"></div>
+                )}
+                <div className="p-2 border-b border-gray-700">
+                  <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>Recent searches</span>
+                  </div>
+                </div>
+                {suggestions
+                  .filter(s => s.type === 'recent')
+                  .map((suggestion, index) => {
+                    const adjustedIndex = suggestions.filter(s => s.type === 'product').length + index;
+                    return (
+                      <div
+                        key={`recent-${suggestion.text}`}
+                        className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-gray-700 transition-colors ${
+                          adjustedIndex === selectedSuggestionIndex ? 'bg-gray-700 text-cyan-400' : 'text-white'
+                        }`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="truncate">{suggestion.text}</span>
+                      </div>
+                    );
+                  })}
+              </>
+            )}
           </div>
         )}
       </div>

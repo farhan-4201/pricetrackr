@@ -22,8 +22,8 @@ export const SearchDashboard = () => {
   return (
     <ErrorBoundary>
       <ComparisonProvider>
-        <div>
-          <div className="max-w-full">
+        <div className="w-full">
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-6">
             {/* Quick Actions */}
             <div className="flex justify-end mb-6">
               <Button 

@@ -1,4 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { api } from '@/lib/api';
+
+type SuggestionItem = {
+  text: string;
+  type: 'recent' | 'product';
+  marketplace?: string;
+};
 
 type UseSearchSuggestionsProps = {
   searchQuery: string;
@@ -8,7 +15,8 @@ type UseSearchSuggestionsProps = {
 
 export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: UseSearchSuggestionsProps) => {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<SuggestionItem[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
@@ -28,19 +36,47 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
     }
   }, []);
 
+  // Fetch autocomplete suggestions when search query changes
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = recentSearches
-        .filter(search => search.toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 5);
-      setSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setSuggestions(recentSearches.slice(0, 5));
-      setShowSuggestions(recentSearches.length > 0);
-    }
+    const fetchAutocomplete = async () => {
+      if (searchQuery.trim().length >= 2) {
+        try {
+          const response = await api.get(`/products/autocomplete?q=${encodeURIComponent(searchQuery.trim())}`) as any;
+          const autocompleteItems: SuggestionItem[] = (response.suggestions || []).map((s: any) => ({
+            text: s.text,
+            type: 'product' as const,
+            marketplace: s.marketplace
+          }));
+          setAutocompleteSuggestions(autocompleteItems);
+        } catch (error) {
+          console.error('Failed to fetch autocomplete suggestions:', error);
+          setAutocompleteSuggestions([]);
+        }
+      } else {
+        setAutocompleteSuggestions([]);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchAutocomplete, 150); // Debounce API calls
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Combine and set suggestions
+  useEffect(() => {
+    const recentItems: SuggestionItem[] = recentSearches
+      .filter(search => search.toLowerCase().includes(searchQuery.toLowerCase()) || searchQuery.trim().length < 2)
+      .slice(0, 3)
+      .map(search => ({ text: search, type: 'recent' as const }));
+
+    const combined = [...autocompleteSuggestions.slice(0, 5), ...recentItems.slice(0, 2)];
+    const unique = combined.filter((item, index, self) =>
+      index === self.findIndex(t => t.text === item.text)
+    );
+
+    setSuggestions(unique);
+    setShowSuggestions(unique.length > 0);
     setSelectedSuggestionIndex(-1);
-  }, [searchQuery, recentSearches]);
+  }, [searchQuery, recentSearches, autocompleteSuggestions]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,16 +109,17 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
   };
 
   const handleInputFocus = () => {
-    if (recentSearches.length > 0) {
-      setSuggestions(recentSearches.slice(0, 5));
-      setShowSuggestions(true);
-    }
+    const recentItems: SuggestionItem[] = recentSearches
+      .slice(0, 5)
+      .map(search => ({ text: search, type: 'recent' as const }));
+    setSuggestions(recentItems);
+    setShowSuggestions(recentItems.length > 0);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
+  const handleSuggestionClick = (suggestion: SuggestionItem) => {
+    setSearchQuery(suggestion.text);
     setShowSuggestions(false);
-    onSearch(suggestion);
+    onSearch(suggestion.text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

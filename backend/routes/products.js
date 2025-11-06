@@ -223,6 +223,74 @@ router.get("/:id/history", auth, async (req, res) => {
 // Scrape products from all marketplaces
 router.post("/scrape", scrapingRateLimiter, validateSearch, scraperController);
 
+// Get autocomplete suggestions based on product names
+router.get("/autocomplete", async (req, res) => {
+  try {
+    const { q: query, limit = 5 } = req.query;
+
+    if (!query || query.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+
+    // Escape special regex characters
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Use a more efficient approach with text search and filtering
+    const suggestions = await SearchResult.aggregate([
+      {
+        $match: {
+          $text: { $search: escapedQuery }
+        }
+      },
+      {
+        $unwind: "$results"
+      },
+      {
+        $match: {
+          "results.name": { $regex: `^${escapedQuery}`, $options: "i" }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            name: "$results.name",
+            marketplace: "$results.marketplace"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1, "_id.name": 1 }
+      },
+      {
+        $limit: parseInt(limit)
+      },
+      {
+        $project: {
+          _id: 0,
+          name: "$_id.name",
+          marketplace: "$_id.marketplace",
+          count: 1
+        }
+      }
+    ], { maxTimeMS: 5000 }); // 5 second timeout
+
+    res.json({
+      suggestions: suggestions.map(s => ({
+        text: s.name,
+        type: 'product',
+        marketplace: s.marketplace
+      }))
+    });
+  } catch (error) {
+    console.error('Autocomplete error:', error);
+    if (error.message && error.message.includes('buffering timed out')) {
+      return res.status(504).json({ error: "Search timeout - please try again" });
+    }
+    res.status(500).json({ error: "Failed to fetch autocomplete suggestions" });
+  }
+});
+
 // Get saved search results
 router.get("/search-results", async (req, res) => {
   try {

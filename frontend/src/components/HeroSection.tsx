@@ -102,7 +102,7 @@ export const HeroSection = () => {
 
   return (
     <section 
-      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+      className="relative py-16 md:py-20 lg:py-24 flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
       aria-label="Hero section showcasing price tracking platform"
       onMouseMove={handleMouseMove}
     >

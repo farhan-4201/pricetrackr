@@ -51,6 +51,12 @@ SearchResultSchema.index({ "results.name": "text" }, {
   background: true
 });
 
+// Index for efficient autocomplete queries (prefix matching)
+SearchResultSchema.index({ "results.name": 1 }, {
+  name: "autocomplete_name_index",
+  background: true
+});
+
 const SearchResult = mongoose.model("SearchResult", SearchResultSchema);
 
 export default SearchResult;
