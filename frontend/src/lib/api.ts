@@ -98,7 +98,8 @@ class ApiClient {
   private config: ApiConfig;
   private baseURL: string;
 
- constructor() {
+ 
+constructor() {
   this.config = {
     baseURL:
       import.meta.env.VITE_API_BASE_URL ||
@@ -111,19 +112,20 @@ class ApiClient {
   };
 
   // 🧹 Clean and normalize base URL
-  let cleanBase = this.config.baseURL.trim().replace(/\/+$/, '');
-
-  // Remove any existing `/api/v1` or trailing slash before adding new one
-  const duplicateRegex = new RegExp(`/api/${this.config.version}$`, 'i');
-  cleanBase = cleanBase.replace(duplicateRegex, '');
-  cleanBase = cleanBase.replace(/\/api\/v\d+$/i, '');
+  let cleanBase = this.config.baseURL.trim();
+  
+  // Remove trailing slashes
+  cleanBase = cleanBase.replace(/\/+$/, '');
+  
+  // Remove any existing /api or /api/vX suffix (case insensitive)
+  cleanBase = cleanBase.replace(/\/api(?:\/v\d+)?$/i, '');
 
   // ✅ Construct final base URL safely
   this.baseURL = `${cleanBase}/api/${this.config.version}`;
 
-  console.log('[API CONFIG] ✅ Base URL:', this.baseURL);
+  console.log('[API CONFIG] ✅ Final Base URL:', this.baseURL);
+  console.log('[API CONFIG] 📝 Test autocomplete:', `${this.baseURL}/products/autocomplete?q=test`);
 }
-
 
 
   protected async request<T>(
