@@ -123,6 +123,52 @@ PriceTrackr Team
   }
 });
 
+// ✅ SPECIFIC ROUTES (must come before generic /:id routes)
+
+// Check if item is in watchlist
+router.get("/check/:productId", auth, async (req, res) => {
+  try {
+    const item = await WatchlistItem.findOne({
+      productId: req.params.productId,
+      userId: req.user.userId
+    });
+
+    res.json({ inWatchlist: !!item, item: item });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to check watchlist status" });
+  }
+});
+
+// Get watchlist statistics
+router.get("/stats", auth, async (req, res) => {
+  try {
+    const stats = await WatchlistItem.aggregate([
+      { $match: { userId: req.user.userId } },
+      {
+        $group: {
+          _id: null,
+          totalItems: { $sum: 1 },
+          trackedItems: { $sum: { $cond: ["$isTracking", 1, 0] } },
+          byMarketplace: { $push: "$marketplace" }
+        }
+      }
+    ]);
+
+    const result = stats[0] || { totalItems: 0, trackedItems: 0 };
+    result.byMarketplace = result.byMarketplace ?
+      result.byMarketplace.reduce((acc, marketplace) => {
+        acc[marketplace] = (acc[marketplace] || 0) + 1;
+        return acc;
+      }, {}) : {};
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch watchlist statistics" });
+  }
+});
+
+// ✅ GENERIC /:id ROUTES (must come LAST)
+
 // Update watchlist item
 router.put("/:id", auth, async (req, res) => {
   try {
@@ -203,48 +249,6 @@ router.delete("/:id", auth, async (req, res) => {
     res.json({ message: "Item removed from watchlist" });
   } catch (error) {
     res.status(500).json({ error: "Failed to remove item from watchlist" });
-  }
-});
-
-// Check if item is in watchlist
-router.get("/check/:productId", auth, async (req, res) => {
-  try {
-    const item = await WatchlistItem.findOne({
-      productId: req.params.productId,
-      userId: req.user.userId
-    });
-
-    res.json({ inWatchlist: !!item, item: item });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to check watchlist status" });
-  }
-});
-
-// Get watchlist statistics
-router.get("/stats", auth, async (req, res) => {
-  try {
-    const stats = await WatchlistItem.aggregate([
-      { $match: { userId: req.user.userId } },
-      {
-        $group: {
-          _id: null,
-          totalItems: { $sum: 1 },
-          trackedItems: { $sum: { $cond: ["$isTracking", 1, 0] } },
-          byMarketplace: { $push: "$marketplace" }
-        }
-      }
-    ]);
-
-    const result = stats[0] || { totalItems: 0, trackedItems: 0 };
-    result.byMarketplace = result.byMarketplace ?
-      result.byMarketplace.reduce((acc, marketplace) => {
-        acc[marketplace] = (acc[marketplace] || 0) + 1;
-        return acc;
-      }, {}) : {};
-
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch watchlist statistics" });
   }
 });
 

@@ -61,6 +61,8 @@ const Product = mongoose.model("Product", productSchema);
 // --- ROUTES ---
 // ✅ IMPORTANT: All specific routes MUST come before catch-all /:id routes
 
+// ✅ SPECIFIC ROUTES (must come before generic /:id routes)
+
 // Test endpoint
 router.get("/test", (req, res) => {
   console.log("[TEST] Test endpoint called");

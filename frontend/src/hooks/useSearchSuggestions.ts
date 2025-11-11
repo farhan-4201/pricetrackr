@@ -23,6 +23,7 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Load recent searches from localStorage
   useEffect(() => {
     const storedSearches = localStorage.getItem('recent_searches');
     if (storedSearches) {
@@ -36,32 +37,39 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
     }
   }, []);
 
-  // Fetch autocomplete suggestions when search query changes
+  // Fetch autocomplete suggestions when query changes
   useEffect(() => {
     const fetchAutocomplete = async () => {
-      if (searchQuery.trim().length >= 2) {
-        try {
-          const response = await api.get(`/products/autocomplete?q=${encodeURIComponent(searchQuery.trim())}`) as any;
-          const autocompleteItems: SuggestionItem[] = (response.suggestions || []).map((s: any) => ({
-            text: s.text,
-            type: 'product' as const,
-            marketplace: s.marketplace
-          }));
-          setAutocompleteSuggestions(autocompleteItems);
-        } catch (error) {
-          console.error('Failed to fetch autocomplete suggestions:', error);
-          setAutocompleteSuggestions([]);
-        }
-      } else {
+      const trimmedQuery = searchQuery.trim();
+      if (trimmedQuery.length < 2) {
+        setAutocompleteSuggestions([]);
+        return;
+      }
+
+      try {
+        // ✅ FIXED endpoint path
+        const response = await api.get(
+          `/api/v1/products/autocomplete?q=${encodeURIComponent(trimmedQuery)}`
+        ) as any;
+
+        const autocompleteItems: SuggestionItem[] = (response?.data?.suggestions || []).map((s: any) => ({
+          text: s.text,
+          type: 'product' as const,
+          marketplace: s.marketplace,
+        }));
+
+        setAutocompleteSuggestions(autocompleteItems);
+      } catch (error) {
+        console.error('Failed to fetch autocomplete suggestions:', error);
         setAutocompleteSuggestions([]);
       }
     };
 
-    const debounceTimer = setTimeout(fetchAutocomplete, 150); // Debounce API calls
+    const debounceTimer = setTimeout(fetchAutocomplete, 200);
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
 
-  // Combine and set suggestions
+  // Combine autocomplete and recent searches
   useEffect(() => {
     const recentItems: SuggestionItem[] = recentSearches
       .filter(search => search.toLowerCase().includes(searchQuery.toLowerCase()) || searchQuery.trim().length < 2)
@@ -78,6 +86,7 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
     setSelectedSuggestionIndex(-1);
   }, [searchQuery, recentSearches, autocompleteSuggestions]);
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
