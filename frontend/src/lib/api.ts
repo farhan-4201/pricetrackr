@@ -104,7 +104,7 @@ constructor() {
     baseURL:
       import.meta.env.VITE_API_BASE_URL ||
       (import.meta.env.PROD
-        ? 'https://smartpricetracker.me'
+        ? 'https://api.smartpricetracker.me'
         : 'http://localhost:8000'),
     version: import.meta.env.VITE_API_VERSION || 'v1',
     timeout: parseInt(import.meta.env.VITE_DEFAULT_TIMEOUT || '30000'),
