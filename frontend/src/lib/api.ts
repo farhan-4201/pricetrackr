@@ -99,15 +99,31 @@ class ApiClient {
   private baseURL: string;
 
   constructor() {
-    this.config = {
-      baseURL: import.meta.env.VITE_API_BASE_URL ||
-               (import.meta.env.PROD ? 'https://smartpricetracker.me' : 'http://localhost:8000'),
-      version: import.meta.env.VITE_API_VERSION || 'v1',
-      timeout: parseInt(import.meta.env.VITE_DEFAULT_TIMEOUT || '30000'),
-      maxRetries: parseInt(import.meta.env.VITE_MAX_RETRIES || '3'),
-    };
-    this.baseURL = `${this.config.baseURL}/api/${this.config.version}`;
+  this.config = {
+    baseURL:
+      import.meta.env.VITE_API_BASE_URL ||
+      (import.meta.env.PROD
+        ? 'https://smartpricetracker.me'
+        : 'http://localhost:8000'),
+    version: import.meta.env.VITE_API_VERSION || 'v1',
+    timeout: parseInt(import.meta.env.VITE_DEFAULT_TIMEOUT || '30000'),
+    maxRetries: parseInt(import.meta.env.VITE_MAX_RETRIES || '3'),
+  };
+
+  // 🧹 Clean up and prevent duplicate /api/v1 in base URL
+  let cleanBase = this.config.baseURL.replace(/\/+$/, ''); // remove trailing slashes
+
+  // If base already contains /api/v1 or /api/<version>, don’t append again
+  const versionPath = `/api/${this.config.version}`;
+  if (cleanBase.endsWith(versionPath)) {
+    this.baseURL = cleanBase;
+  } else {
+    this.baseURL = `${cleanBase}${versionPath}`;
   }
+
+  console.log('[API CONFIG] Base URL:', this.baseURL);
+}
+
 
   protected async request<T>(
     endpoint: string,
