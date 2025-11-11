@@ -98,7 +98,7 @@ class ApiClient {
   private config: ApiConfig;
   private baseURL: string;
 
-  constructor() {
+ constructor() {
   this.config = {
     baseURL:
       import.meta.env.VITE_API_BASE_URL ||
@@ -110,19 +110,20 @@ class ApiClient {
     maxRetries: parseInt(import.meta.env.VITE_MAX_RETRIES || '3'),
   };
 
-  // 🧹 Clean up and prevent duplicate /api/v1 in base URL
-  let cleanBase = this.config.baseURL.replace(/\/+$/, ''); // remove trailing slashes
+  // 🧹 Clean and normalize base URL
+  let cleanBase = this.config.baseURL.trim().replace(/\/+$/, '');
 
-  // If base already contains /api/v1 or /api/<version>, don’t append again
-  const versionPath = `/api/${this.config.version}`;
-  if (cleanBase.endsWith(versionPath)) {
-    this.baseURL = cleanBase;
-  } else {
-    this.baseURL = `${cleanBase}${versionPath}`;
-  }
+  // Remove any existing `/api/v1` or trailing slash before adding new one
+  const duplicateRegex = new RegExp(`/api/${this.config.version}$`, 'i');
+  cleanBase = cleanBase.replace(duplicateRegex, '');
+  cleanBase = cleanBase.replace(/\/api\/v\d+$/i, '');
 
-  console.log('[API CONFIG] Base URL:', this.baseURL);
+  // ✅ Construct final base URL safely
+  this.baseURL = `${cleanBase}/api/${this.config.version}`;
+
+  console.log('[API CONFIG] ✅ Base URL:', this.baseURL);
 }
+
 
 
   protected async request<T>(
