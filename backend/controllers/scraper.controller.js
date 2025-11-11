@@ -3,6 +3,7 @@
 import darazScraper from "../scrapers/daraz_api_scraper.js";
 import priceOyeScraper from "../scrapers/priceoye_api_scraper.js";
 import telemartScraper from "../scrapers/telemart_scraper.js";
+import ebayScraper from "../scrapers/ebay_api_scraper.js";
 import SearchResult from "../models/search_result.js";
 
 /**
@@ -14,6 +15,7 @@ function normalizeMarketplace(marketplace) {
   if (value === "daraz") return "Daraz";
   if (value === "priceoye") return "PriceOye";
   if (value === "telemart") return "Telemart";
+  if (value === "ebay") return "Ebay";
   return marketplace;
 }
 
@@ -22,6 +24,7 @@ export const scrapeAndStream = async (query, ws) => {
     { fn: darazScraper, name: "Daraz", timeout: 15000 },
     { fn: priceOyeScraper, name: "PriceOye", timeout: 30000 },
     { fn: telemartScraper, name: "Telemart", timeout: 8000 },
+    { fn: ebayScraper, name: "Ebay", timeout: 20000 },
   ];
 
   const promises = scrapers.map(async ({ fn, name, timeout }) => {
@@ -103,6 +106,7 @@ export const scraperController = async (req, res) => {
           daraz: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Daraz').length },
           priceoye: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'PriceOye').length },
           telemart: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Telemart').length },
+          ebay: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Ebay').length },
         },
         timestamp: cachedResult.searchedAt.toISOString(),
         cached: true,
@@ -116,6 +120,7 @@ export const scraperController = async (req, res) => {
       { fn: darazScraper, name: "Daraz", timeout: 15000 },
       { fn: priceOyeScraper, name: "PriceOye", timeout: 30000 },
       { fn: telemartScraper, name: "Telemart", timeout: 8000 },
+      { fn: ebayScraper, name: "Ebay", timeout: 20000 },
     ];
 
     let allProducts = [];

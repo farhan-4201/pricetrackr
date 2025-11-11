@@ -14,7 +14,6 @@ async function runTests() {
     }
 
     // Test 2: Normal search
-    await scraper.initBrowser();
     let products = await scraper.searchProducts("iPhone");
     console.log("✅ Found products:", products.length);
     console.log(products.slice(0, 2));
@@ -29,7 +28,7 @@ async function runTests() {
   } catch (err) {
     console.error("❌ Test failed:", err);
   } finally {
-    await scraper.closeBrowser();
+    await scraper.close();
   }
 }
 

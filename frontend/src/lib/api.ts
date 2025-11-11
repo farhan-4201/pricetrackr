@@ -363,6 +363,11 @@ export interface ScraperSources {
         count: number;
         error?: string | null;
     };
+    ebay: {
+        success: boolean;
+        count: number;
+        error?: string | null;
+    };
 }
 
 // Backend response interface
