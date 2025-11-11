@@ -37,37 +37,38 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
     }
   }, []);
 
-  // Fetch autocomplete suggestions when query changes
-  useEffect(() => {
-    const fetchAutocomplete = async () => {
-      const trimmedQuery = searchQuery.trim();
-      if (trimmedQuery.length < 2) {
-        setAutocompleteSuggestions([]);
-        return;
-      }
+useEffect(() => {
+  const fetchAutocomplete = async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 2) {
+      setAutocompleteSuggestions([]);
+      return;
+    }
 
-      try {
-        // ✅ FIXED endpoint path
-        const response = await api.get(
-          `/api/v1/products/autocomplete?q=${encodeURIComponent(trimmedQuery)}`
-        ) as any;
+    try {
+      // ✅ FIXED: Remove /api/v1 prefix - it's already in the base URL
+      const response = await api.get(
+        `/products/autocomplete?q=${encodeURIComponent(trimmedQuery)}`
+      ) as any;
 
-        const autocompleteItems: SuggestionItem[] = (response?.data?.suggestions || []).map((s: any) => ({
-          text: s.text,
-          type: 'product' as const,
-          marketplace: s.marketplace,
-        }));
+      console.log('✅ Autocomplete response:', response);
 
-        setAutocompleteSuggestions(autocompleteItems);
-      } catch (error) {
-        console.error('Failed to fetch autocomplete suggestions:', error);
-        setAutocompleteSuggestions([]);
-      }
-    };
+      const autocompleteItems: SuggestionItem[] = (response?.suggestions || []).map((s: any) => ({
+        text: s.text,
+        type: 'product' as const,
+        marketplace: s.marketplace,
+      }));
 
-    const debounceTimer = setTimeout(fetchAutocomplete, 200);
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
+      setAutocompleteSuggestions(autocompleteItems);
+    } catch (error) {
+      console.error('❌ Failed to fetch autocomplete suggestions:', error);
+      setAutocompleteSuggestions([]);
+    }
+  };
+
+  const debounceTimer = setTimeout(fetchAutocomplete, 200);
+  return () => clearTimeout(debounceTimer);
+}, [searchQuery]);
 
   // Combine autocomplete and recent searches
   useEffect(() => {
