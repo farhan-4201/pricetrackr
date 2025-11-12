@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 
 type SuggestionItem = {
   text: string;
-  type: 'recent' | 'product';
+  type: 'product';
   marketplace?: string;
 };
 
@@ -14,7 +14,6 @@ type UseSearchSuggestionsProps = {
 };
 
 export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: UseSearchSuggestionsProps) => {
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<SuggestionItem[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -22,20 +21,6 @@ export const useSearchSuggestions = ({ searchQuery, onSearch, setSearchQuery }: 
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Load recent searches from localStorage
-  useEffect(() => {
-    const storedSearches = localStorage.getItem('recent_searches');
-    if (storedSearches) {
-      try {
-        const parsed = JSON.parse(storedSearches);
-        setRecentSearches(Array.isArray(parsed) ? parsed : []);
-      } catch (error) {
-        console.warn('Failed to parse recent searches from localStorage:', error);
-        setRecentSearches([]);
-      }
-    }
-  }, []);
 
 useEffect(() => {
   const fetchAutocomplete = async () => {
@@ -70,22 +55,12 @@ useEffect(() => {
   return () => clearTimeout(debounceTimer);
 }, [searchQuery]);
 
-  // Combine autocomplete and recent searches
+  // Update suggestions based on autocomplete results
   useEffect(() => {
-    const recentItems: SuggestionItem[] = recentSearches
-      .filter(search => search.toLowerCase().includes(searchQuery.toLowerCase()) || searchQuery.trim().length < 2)
-      .slice(0, 3)
-      .map(search => ({ text: search, type: 'recent' as const }));
-
-    const combined = [...autocompleteSuggestions.slice(0, 5), ...recentItems.slice(0, 2)];
-    const unique = combined.filter((item, index, self) =>
-      index === self.findIndex(t => t.text === item.text)
-    );
-
-    setSuggestions(unique);
-    setShowSuggestions(unique.length > 0);
+    setSuggestions(autocompleteSuggestions.slice(0, 5));
+    setShowSuggestions(autocompleteSuggestions.length > 0);
     setSelectedSuggestionIndex(-1);
-  }, [searchQuery, recentSearches, autocompleteSuggestions]);
+  }, [autocompleteSuggestions]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -102,28 +77,13 @@ useEffect(() => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const saveRecentSearch = (query: string) => {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) return;
-
-    setRecentSearches(prev => {
-      const filtered = prev.filter(search => search !== trimmedQuery);
-      const updated = [trimmedQuery, ...filtered].slice(0, 10);
-      localStorage.setItem('recent_searches', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
   const handleInputFocus = () => {
-    const recentItems: SuggestionItem[] = recentSearches
-      .slice(0, 5)
-      .map(search => ({ text: search, type: 'recent' as const }));
-    setSuggestions(recentItems);
-    setShowSuggestions(recentItems.length > 0);
+    // Show autocomplete suggestions if available, otherwise hide dropdown
+    setShowSuggestions(autocompleteSuggestions.length > 0);
   };
 
   const handleSuggestionClick = (suggestion: SuggestionItem) => {
@@ -170,7 +130,6 @@ useEffect(() => {
     selectedSuggestionIndex,
     inputRef,
     dropdownRef,
-    saveRecentSearch,
     handleInputChange,
     handleInputFocus,
     handleSuggestionClick,

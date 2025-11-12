@@ -4,9 +4,17 @@ import { TrendingUp, Zap, Shield } from "lucide-react";
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen text-white p-4 md:p-6 lg:p-8" style={{
+      background: "rgba(15, 23, 42, 0.5)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+    }}>
       <div className="absolute inset-0 -z-10 h-full w-full bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4" style={{
+        background: "rgba(15, 23, 42, 0.5)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}>
         {/* Header */}
         <motion.div
           className="text-center mb-8 md:mb-10"

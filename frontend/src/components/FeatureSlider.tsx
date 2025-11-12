@@ -31,6 +31,15 @@ const FeatureSlider = () => {
       icon: BarChart3,
       title: "Price History",
       description: "Visualize long-term price trends with beautiful charts."
+    },
+    {
+      icon: Search,
+      title: "Advanced Search",
+      description: "Find the best deals with our powerful search filters."
+    },{
+      icon: ChevronRight,
+      title: "User-Friendly Interface",
+      description: "Navigate and find deals easily with our intuitive design."
     }
   ];
 

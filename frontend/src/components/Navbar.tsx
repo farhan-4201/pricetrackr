@@ -32,6 +32,7 @@ export const Navbar = () => {
     { to: "/dashboard", label: "Dashboard" },
     { to: "/features", label: "Features" },
     { to: "/about", label: "About" },
+    { to: "/how-it-works", label: "How It Works?"}
   ];
 
   // Theme toggle handler

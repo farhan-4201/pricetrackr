@@ -25,6 +25,10 @@ export const Index = () => {
     navigate("/dashboard");
   };
 
+  const navigateToHowItWorks = () => {
+    navigate("/how-it-works");
+  };
+
   return (
     <div
       className="w-full text-white"
@@ -116,6 +120,7 @@ export const Index = () => {
               </Button>
 
               <Button
+                onClick={navigateToHowItWorks}
                 variant="outline"
                 size="lg"
                 className="px-10 py-5 text-xl font-semibold transition-all duration-300 hover:scale-105"
@@ -126,7 +131,7 @@ export const Index = () => {
                   color: "#22d3ee",
                 }}
               >
-                Watch Demo
+                How It Works?
               </Button>
             </div>
           </div>
