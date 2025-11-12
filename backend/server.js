@@ -9,9 +9,10 @@ import usersRouter from "./routes/users.js";
 import productsRouter from "./routes/products.js";
 import notificationsRouter from "./routes/notifications.js";
 import watchlistRouter from "./routes/watchlist.js";
+import { scraperController } from "./controllers/scraper.controller.js";
 import passport from "./middleware/googleAuth.js";
 import { createWebSocketServer } from './websocket.js';
-import { createRateLimiters } from "./middleware/rateLimiter.js";
+import { apiRateLimiter, authRateLimiter, scrapingRateLimiter } from "./middleware/rateLimiter.js";
 import { startPriceMonitoring } from './price-monitor.js';
 
 // 🪵 Logger setup with Winston
@@ -35,10 +36,10 @@ if (process.env.NODE_ENV !== 'production') {
 const app = express();
 
 // ✅ Must come before any proxy-dependent middleware
-app.set('trust proxy', true);
+// Set trust proxy for AWS load balancer
+app.set('trust proxy', 1); // Trust first proxy
 
-// ✅ Create rate limiters
-const { apiRateLimiter, authRateLimiter, scrapingRateLimiter } = createRateLimiters();
+// ✅ Rate limiters imported directly
 
 // ✅ Start server
 const PORT = process.env.PORT || 8000;
@@ -112,8 +113,16 @@ app.use(passport.session());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Rate limiting
+// ✅ Rate limiting - Applied before routes for better protection
+// General API rate limiting
 app.use('/api/', apiRateLimiter);
+
+// Auth-specific rate limiting for user routes
+app.use('/api/v1/users', authRateLimiter);
+
+// Scraping-specific rate limiting for product search and scraping routes
+app.use('/api/v1/products', scrapingRateLimiter);
+app.use('/api/v1/scrape', scrapingRateLimiter);
 
 // ✅ Log every API request
 app.use('/api/', (req, res, next) => {
@@ -128,9 +137,15 @@ app.use('/api/', (req, res, next) => {
 
 // ✅ Routes
 app.use("/api/v1/users", usersRouter);
+
 app.use("/api/v1/products", productsRouter);
+console.log("✅ Products router mounted successfully");
+
 app.use("/api/v1/notifications", notificationsRouter);
 app.use("/api/v1/watchlist", watchlistRouter);
+
+// ✅ Scraping route for HTTP requests (with caching)
+app.post("/api/v1/scrape", scraperController);
 
 // ✅ Health check route
 app.get("/api/health", (req, res) => {
@@ -167,6 +182,14 @@ app.use("*", (req, res) => {
 
 // ✅ Global error handler
 app.use((err, req, res, next) => {
+  // Handle CORS errors
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      error: "CORS policy violation",
+      message: "Origin not allowed"
+    });
+  }
+
   logger.error('Global error handler', {
     error: err.message,
     stack: err.stack,
@@ -175,9 +198,12 @@ app.use((err, req, res, next) => {
     ip: req.ip
   });
 
-  res.status(500).json({
-    error: "Internal server error",
-    message: process.env.NODE_ENV === "development" ? err.message : "Something went wrong"
+  // Don't leak error details in production
+  const isDevelopment = process.env.NODE_ENV === "development";
+  res.status(err.status || 500).json({
+    error: err.status ? err.message : "Internal server error",
+    message: isDevelopment ? err.message : "Something went wrong",
+    ...(isDevelopment && { stack: err.stack })
   });
 });
 

@@ -285,7 +285,7 @@ export const ProductResults: React.FC<ProductResultsProps> = ({
                 }, {} as Record<string, ScrapedProduct[]>);
 
                 // Get all marketplaces that should have sections
-                const allMarketplaces = ['Daraz', 'PriceOye', 'Ebay', 'Telemart'];
+                const allMarketplaces = ['Daraz', 'PriceOye', 'Telemart'];
 
                 return allMarketplaces.map((marketplace) => {
                   const marketplaceProducts = groupedProducts[marketplace] || [];

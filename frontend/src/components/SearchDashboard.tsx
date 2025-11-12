@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Heart } from 'lucide-react';
+import { Heart, Search } from 'lucide-react';
 import { ComparisonProvider } from '@/context/ComparisonContext';
 import { ComparisonFloatingPanel } from '@/components/ProductComparisonSelector';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -22,11 +22,17 @@ export const SearchDashboard = () => {
   return (
     <ErrorBoundary>
       <ComparisonProvider>
-        <div className="w-full">
+        <div 
+          className="w-full min-h-screen py-12"
+          style={{
+            backgroundColor: "#020617"
+          }}
+        >
           <div className="w-full max-w-7xl mx-auto px-4 md:px-6">
+
             {/* Quick Actions */}
             <div className="flex justify-end mb-6">
-              <Button 
+              <Button
                 onClick={() => navigate('/watchlist')}
                 className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-lg"
               >

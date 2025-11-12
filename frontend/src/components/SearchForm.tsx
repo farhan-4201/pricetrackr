@@ -60,7 +60,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
           ref={inputRef}
-          placeholder="🔍 Search for products across Daraz, PriceOye, eBay, and more (e.g., iPhone 14 Pro Max)"
+          placeholder="🔍 Search for products across Daraz, PriceOye, and more (e.g., iPhone 14 Pro Max)"
           value={searchQuery}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
