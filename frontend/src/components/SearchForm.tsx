@@ -22,6 +22,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
     handleInputFocus,
     handleSuggestionClick,
     handleKeyDown,
+    setShowSuggestions,
   } = useSearchSuggestions({ searchQuery, onSearch, setSearchQuery });
 
   const handleSearchClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -29,12 +30,10 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
     e.stopPropagation();
 
     const trimmedQuery = searchQuery.trim();
-
-    if (!trimmedQuery || loading) {
-      return;
-    }
+    if (!trimmedQuery || loading) return;
 
     console.log('[SearchForm] Search button clicked with query:', trimmedQuery);
+    setShowSuggestions(false);
     onSearch(trimmedQuery);
   };
 
@@ -42,17 +41,19 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
     e.preventDefault();
 
     const trimmedQuery = searchQuery.trim();
-
-    if (!trimmedQuery || loading) {
-      return;
-    }
+    if (!trimmedQuery || loading) return;
 
     console.log('[SearchForm] Form submitted with query:', trimmedQuery);
+    setShowSuggestions(false);
     onSearch(trimmedQuery);
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="flex flex-col md:flex-row gap-3 mb-6 p-1 rounded-xl border-2 border-cyan-400/30 bg-card/50 backdrop-blur-xl">
+    <form
+      onSubmit={handleFormSubmit}
+      className="relative flex flex-col md:flex-row gap-3 mb-6 p-1 rounded-xl border-2 border-cyan-400/30 bg-card/50 backdrop-blur-xl z-[9999]"
+      style={{ position: 'relative' }}
+    >
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
@@ -68,31 +69,47 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
         {showSuggestions && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto backdrop-blur-xl"
+            className="absolute top-full left-0 mt-1 w-full border border-border rounded-lg shadow-2xl max-h-60 overflow-y-auto z-[99999]"
+            style={{
+              position: 'absolute',
+              zIndex: 99999,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)', // bright-mode safe background
+              color: '#111827', // dark text for light mode
+              backdropFilter: 'blur(10px)',
+            }}
           >
-            {/* Product suggestions section */}
-            {suggestions.some(s => s.type === 'product') && (
+            {/* Product suggestions header */}
+            {suggestions.some((s) => s.type === 'product') && (
               <>
-                <div className="p-2 border-b border-border">
-                  <div className="flex items-center space-x-2 text-cyan-400 text-sm">
+                <div
+                  className="p-2 border-b border-border sticky top-0 backdrop-blur-md z-[100000]"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    color: '#0e7490', // cyan-700
+                  }}
+                >
+                  <div className="flex items-center space-x-2 text-sm font-semibold">
                     <Search className="w-4 h-4" />
                     <span>Product suggestions</span>
                   </div>
                 </div>
+
                 {suggestions
-                  .filter(s => s.type === 'product')
+                  .filter((s) => s.type === 'product')
                   .map((suggestion, index) => (
                     <div
                       key={`product-${suggestion.text}`}
-                      className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-accent transition-colors ${
-                        index === selectedSuggestionIndex ? 'bg-accent text-cyan-400' : 'text-foreground'
+                      className={`px-4 py-3 cursor-pointer flex items-center space-x-3 transition-colors ${
+                        index === selectedSuggestionIndex
+                          ? 'bg-cyan-100 text-cyan-700'
+                          : 'hover:bg-gray-100 text-gray-900'
                       }`}
                       onClick={() => handleSuggestionClick(suggestion)}
                     >
-                      <Search className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <Search className="w-4 h-4 text-cyan-500 flex-shrink-0" />
                       <span className="truncate flex-1">{suggestion.text}</span>
                       {suggestion.marketplace && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
                           {suggestion.marketplace}
                         </span>
                       )}
@@ -100,8 +117,6 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
                   ))}
               </>
             )}
-
-
           </div>
         )}
       </div>
@@ -114,9 +129,10 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
           loading || !searchQuery.trim() ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         style={{
-          background: loading || !searchQuery.trim()
-            ? 'rgba(107, 114, 128, 0.5)'
-            : 'linear-gradient(135deg, #22d3ee, #22c55e)',
+          background:
+            loading || !searchQuery.trim()
+              ? 'rgba(107, 114, 128, 0.5)'
+              : 'linear-gradient(135deg, #22d3ee, #22c55e)',
           border: 'none',
           minWidth: '120px',
           borderRadius: '0.75rem',
@@ -124,6 +140,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
             ? 'none'
             : '0 10px 40px rgba(34, 211, 238, 0.3)',
           pointerEvents: loading || !searchQuery.trim() ? 'none' : 'auto',
+          color: '#ffffff',
         }}
       >
         {loading ? (

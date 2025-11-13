@@ -58,7 +58,6 @@ useEffect(() => {
   // Update suggestions based on autocomplete results
   useEffect(() => {
     setSuggestions(autocompleteSuggestions.slice(0, 5));
-    setShowSuggestions(autocompleteSuggestions.length > 0);
     setSelectedSuggestionIndex(-1);
   }, [autocompleteSuggestions]);
 
@@ -134,5 +133,6 @@ useEffect(() => {
     handleInputFocus,
     handleSuggestionClick,
     handleKeyDown,
+    setShowSuggestions,
   };
 };
