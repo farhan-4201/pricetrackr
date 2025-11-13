@@ -118,7 +118,7 @@ export const Features = () => {
                   </div>
                   <h3
                     className={`text-2xl font-semibold ${
-                      activeFeature === index ? "text-cyan-400" : "text-white"
+                      activeFeature === index ? "text-cyan-400" : "text-foreground"
                     }`}
                   >
                     {feature.title}
@@ -140,14 +140,14 @@ export const Features = () => {
               className="w-full h-[400px] object-cover"
             />
             <div className="p-10 space-y-5">
-              <h3 className="text-3xl font-bold text-white">
+              <h3 className="text-3xl font-bold text-foreground">
                 {mainFeatures[activeFeature].title}
               </h3>
               <div className="space-y-4">
                 {mainFeatures[activeFeature].details.map((detail, i) => (
                   <div key={i} className="flex items-start space-x-3">
                     <CheckCircle className="h-6 w-6 text-green-400 flex-shrink-0 mt-1" />
-                    <p className="text-lg text-slate-300">{detail}</p>
+                    <p className="text-lg text-foreground">{detail}</p>
                   </div>
                 ))}
               </div>
@@ -165,7 +165,7 @@ export const Features = () => {
           <h2 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
             Start Saving Today
           </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-foreground max-w-2xl mx-auto leading-relaxed">
             Sign up now and track prices smarter — never miss a deal again. Take control
             of your shopping journey with intelligent price tracking.
           </p>
