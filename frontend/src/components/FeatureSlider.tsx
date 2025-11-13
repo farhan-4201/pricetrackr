@@ -9,6 +9,7 @@ interface FeatureCard {
   description: string;
 }
 
+// ... imports remain the same
 const FeatureSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -36,56 +37,46 @@ const FeatureSlider = () => {
       icon: Search,
       title: "Advanced Search",
       description: "Find the best deals with our powerful search filters."
-    },{
+    },
+    {
       icon: ChevronRight,
       title: "User-Friendly Interface",
       description: "Navigate and find deals easily with our intuitive design."
     }
   ];
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % features.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + features.length) % features.length);
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-  };
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % features.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + features.length) % features.length);
+  const goToSlide = (index: number) => setCurrentSlide(index);
 
   return (
     <div
-      className="relative w-full py-16 px-4 overflow-hidden"
-      style={{
-        backgroundColor: '#020617',
-        minHeight: '600px'
-      }}
+      className="relative w-full py-16 px-4 overflow-hidden 
+                 border border-cyan-200/20 backdrop-blur-xl bg-white/10 dark:bg-gray-900/20 
+                 shadow-[0_20px_60px_rgba(0,0,0,0.3)] transition-colors duration-300"
+      style={{ minHeight: '600px' }}
     >
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-8 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
-        style={{
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        }}
+        className="absolute left-8 top-1/2 transform -translate-y-1/2 z-10 
+                   w-12 h-12 bg-white/80 dark:bg-gray-800/80 rounded-full flex items-center justify-center 
+                   shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
         data-aos="fade-right"
         data-aos-delay="600"
       >
-        <ChevronLeft className="w-6 h-6 text-gray-800" />
+        <ChevronLeft className="w-6 h-6 text-gray-800 dark:text-gray-200" />
       </button>
 
       <button
         onClick={nextSlide}
-        className="absolute right-8 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
-        style={{
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-        }}
+        className="absolute right-8 top-1/2 transform -translate-y-1/2 z-10 
+                   w-12 h-12 bg-white/80 dark:bg-gray-800/80 rounded-full flex items-center justify-center 
+                   shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
         data-aos="fade-left"
         data-aos-delay="600"
       >
-        <ChevronRight className="w-6 h-6 text-gray-800" />
+        <ChevronRight className="w-6 h-6 text-gray-800 dark:text-gray-200" />
       </button>
 
       {/* Slider Container */}
@@ -103,35 +94,30 @@ const FeatureSlider = () => {
             >
               <div className="max-w-2xl mx-auto">
                 <div
-                  className="rounded-3xl p-16 text-center shadow-lg hover:scale-105 transition-all duration-500"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(14px)",
-                    WebkitBackdropFilter: "blur(14px)",
-                    border: "1px solid rgba(34,211,238,0.2)",
-                    boxShadow: "0 15px 50px rgba(0,0,0,0.5)",
-                  }}
+                  className="rounded-3xl p-16 text-center shadow-lg hover:scale-105 
+                             transition-all duration-500 
+                             bg-white/70 dark:bg-white/10 
+                             border border-cyan-400/20 
+                             backdrop-blur-xl dark:backdrop-blur-lg"
                 >
                   {/* Icon */}
                   <div className="mb-10">
                     <div
-                      className="w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-md transition-all duration-500"
-                      style={{
-                        background: "rgba(34,211,238,0.2)",
-                        boxShadow: "0 0 30px rgba(34,211,238,0.3)",
-                      }}
+                      className="w-24 h-24 rounded-full flex items-center justify-center mx-auto 
+                                 shadow-md transition-all duration-500 
+                                 bg-cyan-100/50 dark:bg-cyan-900/30"
                     >
-                      <feature.icon className="w-12 h-12 text-cyan-400" />
+                      <feature.icon className="w-12 h-12 text-cyan-500 dark:text-cyan-400" />
                     </div>
                   </div>
 
                   {/* Title */}
-                  <h3 className="text-4xl font-bold mb-8 text-white">
+                  <h3 className="text-4xl font-bold mb-8 text-gray-900 dark:text-white">
                     {feature.title}
                   </h3>
 
                   {/* Description */}
-                  <p className="text-xl text-slate-400 leading-relaxed">
+                  <p className="text-xl text-gray-800 dark:text-slate-400 leading-relaxed">
                     {feature.description}
                   </p>
                 </div>
@@ -149,16 +135,13 @@ const FeatureSlider = () => {
             onClick={() => goToSlide(index)}
             className={`w-3 h-3 rounded-full transition-all duration-300 ${
               index === currentSlide
-                ? 'bg-white scale-125'
-                : 'border-2 border-white bg-transparent hover:bg-white hover:bg-opacity-50'
+                ? 'bg-gray-900 dark:bg-white scale-125'
+                : 'border-2 border-gray-900 dark:border-white bg-transparent hover:bg-gray-900 dark:hover:bg-white/50'
             }`}
-            data-aos="zoom-in"
-            data-aos-delay={1500 + index * 100}
           />
         ))}
       </div>
     </div>
   );
 };
-
 export default FeatureSlider;

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-type Theme = 'dark' | 'light';
+type Theme = "dark" | "light";
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 };
@@ -22,21 +22,31 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Load saved theme or fall back to system preference
+    const stored = localStorage.getItem("theme") as Theme | null;
+    if (stored) return stored;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
 
   const toggleTheme = () => {
-    setTheme(current => current === 'dark' ? 'light' : 'dark');
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
   };
 
   useEffect(() => {
-    // Apply background color to body based on theme
-    if (theme === 'dark') {
-      document.body.style.background = '#020617'; // Dark blue
-      document.body.style.color = '#f1f5f9'; // Light text
+    const root = document.documentElement;
+
+    if (theme === "dark") {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      document.body.style.background = '#ffffff'; // White
-      document.body.style.color = '#020617'; // Dark text
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
+
+    // Optional: apply body colors (visual fallback for non-Tailwind elements)
+    document.body.style.background = theme === "dark" ? "#020617" : "#ffffff";
+    document.body.style.color = theme === "dark" ? "#f1f5f9" : "#020617";
   }, [theme]);
 
   return (

@@ -11,16 +11,14 @@ import {
   CheckCircle,
   Clock,
   Database,
-  Smartphone,
   TrendingDown,
-  Users,
   Shield,
   Globe
 } from "lucide-react";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-export const HowItWorks = () => {
+const HowItWorks = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -123,13 +121,13 @@ export const HowItWorks = () => {
   ];
 
   return (
-    <div className="pt-16 overflow-x-hidden">
+    <div className="w-full min-h-screen scroll-smooth text-gray-900 dark:text-white">
       {/* HERO SECTION */}
       <section
         data-aos="fade-up"
         className="min-h-screen flex items-center justify-center text-center px-6"
       >
-        <div className="max-w-5xl mx-auto space-y-10">
+        <div className="max-w-5xl mx-auto space-y-8 md:space-y-10">
           <Badge
             className="inline-flex items-center space-x-2 px-5 py-2 text-lg font-medium"
             style={{
@@ -142,32 +140,30 @@ export const HowItWorks = () => {
             <span>How It Works</span>
           </Badge>
 
-          <h1 className="text-5xl md:text-7xl font-bold leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold leading-tight">
             <span className="bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
               Smart Price Tracking
             </span>
             <br />
-            <span className="text-white">Made Simple</span>
+            <span className="text-gray-900 dark:text-white">Made Simple</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Discover how PriceTracker revolutionizes your shopping experience with
-            intelligent automation, real-time monitoring, and seamless price comparison
-            across Pakistan's top online marketplaces.
+          <p className="text-lg md:text-xl text-gray-700 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
+            Discover how PriceTracker revolutionizes your shopping experience with intelligent automation, real-time monitoring, and seamless price comparison across Pakistan's top online marketplaces.
           </p>
         </div>
       </section>
 
       {/* STEPS SECTION */}
-      <section className="min-h-screen flex items-center px-6 py-24" data-aos="fade-up">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+      <section className="min-h-screen flex flex-col px-6 py-24" data-aos="fade-up">
+        <div className="container mx-auto max-w-7xl space-y-12">
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6">
               <span className="bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
                 The Process
               </span>
             </h2>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-gray-700 dark:text-slate-300 max-w-2xl mx-auto">
               From search to savings — here's how PriceTracker works behind the scenes
             </p>
           </div>
@@ -179,7 +175,7 @@ export const HowItWorks = () => {
                 data-aos="fade-up"
                 data-aos-delay={index * 150}
                 className={`flex flex-col lg:flex-row items-center gap-12 p-8 rounded-2xl border ${
-                  index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
+                  index % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"
                 }`}
                 style={{
                   background: "rgba(255,255,255,0.05)",
@@ -191,42 +187,55 @@ export const HowItWorks = () => {
                 {/* Step Number & Icon */}
                 <div className="flex-shrink-0 text-center">
                   <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6"
                     style={{
                       background: `linear-gradient(135deg, ${
-                        step.color === 'cyan' ? '#22d3ee' :
-                        step.color === 'green' ? '#22c55e' :
-                        step.color === 'purple' ? '#a855f7' :
-                        step.color === 'orange' ? '#f97316' : '#3b82f6'
+                        step.color === "cyan"
+                          ? "#22d3ee"
+                          : step.color === "green"
+                          ? "#22c55e"
+                          : step.color === "purple"
+                          ? "#a855f7"
+                          : step.color === "orange"
+                          ? "#f97316"
+                          : "#3b82f6"
                       }, rgba(34,211,238,0.3))`,
                       boxShadow: `0 0 30px rgba(${
-                        step.color === 'cyan' ? '34,211,238' :
-                        step.color === 'green' ? '34,197,94' :
-                        step.color === 'purple' ? '168,85,247' :
-                        step.color === 'orange' ? '249,115,22' : '59,130,246'
+                        step.color === "cyan"
+                          ? "34,211,238"
+                          : step.color === "green"
+                          ? "34,197,94"
+                          : step.color === "purple"
+                          ? "168,85,247"
+                          : step.color === "orange"
+                          ? "249,115,22"
+                          : "59,130,246"
                       },0.4)`,
                     }}
                   >
                     <step.icon className="h-10 w-10 text-white" />
                   </div>
-                  <div className="text-6xl font-bold text-slate-600 mb-2">
+                  <div className="text-5xl md:text-6xl font-bold text-slate-600">
                     {step.step}
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 text-center lg:text-left">
-                  <h3 className="text-3xl font-bold text-white mb-4">
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 md:mb-4">
                     {step.title}
                   </h3>
-                  <p className="text-xl text-slate-300 mb-6">
+                  <p className="text-base md:text-lg text-gray-700 dark:text-slate-300 mb-4 md:mb-6">
                     {step.description}
                   </p>
-                  <div className="space-y-3">
+                  <div className="space-y-2 md:space-y-3">
                     {step.details.map((detail, i) => (
-                      <div key={i} className="flex items-center justify-center lg:justify-start space-x-3">
-                        <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                        <span className="text-lg text-slate-300">{detail}</span>
+                      <div
+                        key={i}
+                        className="flex items-center justify-center lg:justify-start space-x-2 md:space-x-3"
+                      >
+                        <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-green-400 flex-shrink-0" />
+                        <span className="text-sm md:text-lg text-gray-700 dark:text-slate-300">{detail}</span>
                       </div>
                     ))}
                   </div>
@@ -237,16 +246,16 @@ export const HowItWorks = () => {
         </div>
       </section>
 
-      {/* FEATURES GRID */}
+      {/* FEATURES SECTION */}
       <section className="min-h-screen flex items-center px-6 py-24" data-aos="fade-up">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+        <div className="container mx-auto max-w-7xl space-y-12">
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6">
               <span className="bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
                 Why Choose PriceTracker?
               </span>
             </h2>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-gray-700 dark:text-slate-300 max-w-2xl mx-auto">
               Built with cutting-edge technology for the modern shopper
             </p>
           </div>
@@ -257,7 +266,7 @@ export const HowItWorks = () => {
                 key={index}
                 data-aos="zoom-in"
                 data-aos-delay={index * 100}
-                className="p-8 rounded-2xl border"
+                className="p-6 md:p-8 rounded-2xl border"
                 style={{
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(34,211,238,0.2)",
@@ -267,19 +276,19 @@ export const HowItWorks = () => {
               >
                 <div className="flex items-start space-x-4">
                   <div
-                    className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+                    className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{
                       background: "rgba(34,211,238,0.15)",
                       boxShadow: "0 0 20px rgba(34,211,238,0.3)",
                     }}
                   >
-                    <feature.icon className="h-7 w-7 text-cyan-400" />
+                    <feature.icon className="h-5 md:h-7 w-5 md:w-7 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-3">
+                    <h3 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white mb-1 md:mb-3">
                       {feature.title}
                     </h3>
-                    <p className="text-lg text-slate-300 leading-relaxed">
+                    <p className="text-sm md:text-lg text-gray-700 dark:text-slate-300 leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -293,7 +302,7 @@ export const HowItWorks = () => {
       {/* CTA SECTION */}
       <section className="min-h-screen flex items-center justify-center px-6 py-24" data-aos="zoom-in">
         <div
-          className="p-16 rounded-3xl text-center border max-w-4xl mx-auto space-y-10"
+          className="p-12 md:p-16 rounded-3xl text-center border max-w-4xl mx-auto space-y-8 md:space-y-10"
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(34,211,238,0.2)",
@@ -301,20 +310,18 @@ export const HowItWorks = () => {
             boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
           }}
         >
-          <h2 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
             Ready to Start Saving?
           </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Join thousands of smart shoppers who are already saving money with
-            PriceTracker's intelligent price monitoring system. Start tracking
-            prices today and never overpay again.
+          <p className="text-base md:text-xl text-gray-900 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Join thousands of smart shoppers who are already saving money with PriceTracker's intelligent price monitoring system. Start tracking prices today and never overpay again.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center">
             <Button
               onClick={navigateToDashboard}
               size="lg"
-              className="px-12 py-5 text-lg font-medium transition-all duration-300 hover:scale-105"
+              className="px-8 md:px-12 py-4 md:py-5 text-lg font-medium transition-all duration-300 hover:scale-105"
               style={{
                 background: "linear-gradient(135deg, #22d3ee, #22c55e)",
                 border: "none",
@@ -322,13 +329,13 @@ export const HowItWorks = () => {
               }}
             >
               Start Tracking Now
-              <ArrowRight className="ml-2 h-6 w-6" />
+              <ArrowRight className="ml-2 h-5 md:h-6 w-5 md:w-6" />
             </Button>
 
             <Button
               variant="outline"
               size="lg"
-              className="px-12 py-5 text-lg font-medium transition-all duration-300 hover:scale-105"
+              className="px-8 md:px-12 py-4 md:py-5 text-lg font-medium transition-all duration-300 hover:scale-105"
               style={{
                 background: "rgba(255,255,255,0.05)",
                 backdropFilter: "blur(12px)",
@@ -340,14 +347,14 @@ export const HowItWorks = () => {
             </Button>
           </div>
 
-          <div className="flex flex-col space-y-4 text-lg text-slate-400">
+          <div className="flex flex-col space-y-2 md:space-y-4 text-sm md:text-lg text-gray-900 dark:text-slate-400">
             {["Free to start", "No credit card required", "Cancel anytime"].map(
               (text, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-center space-x-3"
+                  className="flex items-center justify-center space-x-2 md:space-x-3"
                 >
-                  <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <CheckCircle className="h-4 md:h-5 w-4 md:w-5 text-green-400 flex-shrink-0" />
                   <span>{text}</span>
                 </div>
               )

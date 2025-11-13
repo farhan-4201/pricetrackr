@@ -42,10 +42,10 @@ export const About = () => {
   };
 
   const stats = [
-    { value: "500K+", label: "Happy Users", icon: Users, color: "#22d3ee" },
-    { value: "$50M+", label: "Money Saved", icon: TrendingUp, color: "#22c55e" },
-    { value: "50+", label: "Marketplaces", icon: Globe, color: "#a855f7" },
-    { value: "99.9%", label: "Uptime", icon: Shield, color: "#22d3ee" },
+    { value: "500K+", label: "Happy Users", icon: Users, color: "cyan" },
+    { value: "$50M+", label: "Money Saved", icon: TrendingUp, color: "green" },
+    { value: "50+", label: "Marketplaces", icon: Globe, color: "purple" },
+    { value: "99.9%", label: "Uptime", icon: Shield, color: "cyan" },
   ];
 
   const values = [
@@ -76,12 +76,7 @@ export const About = () => {
   ];
 
   return (
-    <div
-      className="w-full min-h-screen text-white"
-      style={{
-        scrollBehavior: "smooth",
-      }}
-    >
+    <div className="w-full min-h-screen scroll-smooth text-gray-900 dark:text-white">
       {/* HERO SECTION */}
       <section
         data-aos="fade-up"
@@ -111,10 +106,10 @@ export const About = () => {
               Empowering Smart
             </span>
             <br />
-            <span className="text-white">Shopping Decisions</span>
+            <span className="text-gray-900 dark:text-white">Shopping Decisions</span>
           </h1>
 
-          <p className="text-lg md:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-2xl text-gray-700 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
             PriceTracker is a final-year project designed to simplify price
             tracking and empower smarter buying decisions for every shopper and
             business vendor.
@@ -144,7 +139,7 @@ export const About = () => {
       {showStory && (
         <section
           data-aos="fade-up"
-          className="min-h-screen flex flex-col justify-center px-8 relative"
+          className="min-h-screen flex flex-col justify-center px-8"
         >
           <div className="max-w-6xl mx-auto text-center space-y-12">
             <div
@@ -173,9 +168,7 @@ export const About = () => {
                   }}
                 >
                   <Headphones className="h-6 w-6" />
-                  <span className="font-medium text-lg">
-                    The Journey That Started It All
-                  </span>
+                  <span className="font-medium text-lg">The Journey That Started It All</span>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-10">
@@ -213,18 +206,18 @@ export const About = () => {
                       >
                         <Icon className={`h-10 w-10 text-${color}-400`} />
                       </div>
-                      <h3 className="text-2xl font-semibold text-white">
+                      <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
                         {title}
                       </h3>
-                      <p className="text-lg text-slate-300">{text}</p>
+                      <p className="text-lg text-gray-700 dark:text-slate-300">{text}</p>
                     </div>
                   ))}
                 </div>
 
-                <p className="text-xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
-                  That frustrating experience sparked something bigger. What if
-                  we could automate price tracking, compare marketplaces in real
-                  time, and ensure no shopper ever overpays again?
+                <p className="text-xl text-gray-700 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
+                  That frustrating experience sparked something bigger. What if we
+                  could automate price tracking, compare marketplaces in real time,
+                  and ensure no shopper ever overpays again?
                 </p>
               </div>
             </div>
@@ -233,17 +226,13 @@ export const About = () => {
       )}
 
       {/* VALUES SECTION */}
-      <section
-        data-aos="fade-up"
-        className="min-h-screen flex flex-col justify-center px-8"
-      >
+      <section data-aos="fade-up" className="min-h-screen flex flex-col justify-center px-8">
         <div className="text-center mb-20">
           <h2 className="text-5xl font-bold mb-6 bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
             Our Core Values
           </h2>
-          <p className="text-2xl text-slate-300 max-w-3xl mx-auto">
-            These principles guide how we build, innovate, and serve our
-            community.
+          <p className="text-2xl text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
+            These principles guide how we build, innovate, and serve our community.
           </p>
         </div>
 
@@ -270,10 +259,10 @@ export const About = () => {
               >
                 <value.icon className="h-8 w-8 text-cyan-400" />
               </div>
-              <h3 className="text-2xl font-semibold mb-4 text-white">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
                 {value.title}
               </h3>
-              <p className="text-slate-400 text-lg leading-relaxed">
+              <p className="text-gray-700 dark:text-slate-300 text-lg leading-relaxed">
                 {value.description}
               </p>
             </div>
@@ -282,10 +271,7 @@ export const About = () => {
       </section>
 
       {/* CTA SECTION */}
-      <section
-        data-aos="zoom-in"
-        className="min-h-screen flex items-center justify-center px-6"
-      >
+      <section data-aos="zoom-in" className="min-h-screen flex items-center justify-center px-6">
         <div
           className="max-w-5xl mx-auto p-16 rounded-3xl border relative overflow-hidden text-center"
           style={{
@@ -301,7 +287,7 @@ export const About = () => {
             <h2 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
               Join Our Mission
             </h2>
-            <p className="text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-2xl text-gray-700 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
               Ready to take control of your shopping and start saving money? Join
               hundreds of thousands of smart shoppers today.
             </p>
@@ -319,7 +305,7 @@ export const About = () => {
               Get Started for Free
             </Button>
 
-            <div className="flex justify-center items-center space-x-8 text-lg text-slate-400">
+            <div className="flex justify-center items-center space-x-8 text-lg text-gray-500 dark:text-slate-400">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-5 w-5 text-green-400" />
                 <span>Free to start</span>

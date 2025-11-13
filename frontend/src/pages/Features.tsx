@@ -70,14 +70,7 @@ export const Features = () => {
         className="min-h-screen flex items-center justify-center text-center px-6"
       >
         <div className="max-w-5xl mx-auto space-y-10">
-          <Badge
-            className="inline-flex items-center space-x-2 px-5 py-2 text-lg font-medium"
-            style={{
-              background: "rgba(34, 211, 238, 0.1)",
-              border: "1px solid rgba(34, 211, 238, 0.3)",
-              color: "#22d3ee",
-            }}
-          >
+          <Badge className="inline-flex items-center space-x-2 px-5 py-2 text-lg font-medium bg-cyan-200/20 border border-cyan-200/30 text-cyan-400">
             <Zap className="h-5 w-5" />
             <span>Powerful Features</span>
           </Badge>
@@ -109,36 +102,17 @@ export const Features = () => {
                 onClick={() => setActiveFeature(index)}
                 data-aos="fade-right"
                 data-aos-delay={index * 150}
-                className={`w-full text-left p-8 rounded-2xl transition-all duration-300 border ${
+                className={`w-full text-left p-8 rounded-2xl transition-all duration-300 border backdrop-blur-xl ${
                   activeFeature === index
-                    ? "border-cyan-400/60 scale-105"
-                    : "border-cyan-400/10 hover:border-cyan-400/30"
+                    ? "border-cyan-400/60 scale-105 bg-cyan-200/10 shadow-[0_8px_32px_rgba(34,211,238,0.3)]"
+                    : "border-cyan-400/10 hover:border-cyan-400/30 bg-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
                 }`}
-                style={{
-                  background:
-                    activeFeature === index
-                      ? "rgba(34, 211, 238, 0.1)"
-                      : "rgba(255, 255, 255, 0.05)",
-                  backdropFilter: "blur(12px)",
-                  WebkitBackdropFilter: "blur(12px)",
-                  boxShadow:
-                    activeFeature === index
-                      ? "0 8px 32px rgba(34, 211, 238, 0.3)"
-                      : "0 8px 32px rgba(0,0,0,0.3)",
-                }}
               >
                 <div className="flex items-center space-x-4 mb-4">
                   <div
                     className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${
-                      activeFeature === index ? "scale-110" : ""
+                      activeFeature === index ? "scale-110 shadow-[0_0_20px_rgba(34,211,238,0.4)] bg-cyan-200/15" : "bg-cyan-200/15"
                     }`}
-                    style={{
-                      background: "rgba(34, 211, 238, 0.15)",
-                      boxShadow:
-                        activeFeature === index
-                          ? "0 0 20px rgba(34, 211, 238, 0.4)"
-                          : "none",
-                    }}
                   >
                     <feature.icon className="h-7 w-7 text-cyan-400" />
                   </div>
@@ -158,14 +132,7 @@ export const Features = () => {
           {/* Active Feature Details */}
           <div
             data-aos="fade-left"
-            className="rounded-2xl overflow-hidden border"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(34,211,238,0.2)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-            }}
+            className="rounded-2xl overflow-hidden border backdrop-blur-2xl border-cyan-200/20 shadow-[0_20px_60px_rgba(0,0,0,0.5)] bg-white/5"
           >
             <img
               src={mainFeatures[activeFeature].image}
@@ -190,16 +157,11 @@ export const Features = () => {
       </section>
 
       {/* CTA SECTION */}
-      <section className="min-h-screen flex items-center justify-center px-6 py-24" data-aos="zoom-in">
-        <div
-          className="p-16 rounded-3xl text-center border max-w-3xl mx-auto space-y-10"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(34,211,238,0.2)",
-            backdropFilter: "blur(16px)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
-          }}
-        >
+      <section
+        className="min-h-screen flex items-center justify-center px-6 py-24"
+        data-aos="zoom-in"
+      >
+        <div className="p-16 rounded-3xl text-center border backdrop-blur-2xl border-cyan-200/20 shadow-[0_20px_60px_rgba(0,0,0,0.4)] bg-white/5 max-w-3xl mx-auto space-y-10">
           <h2 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
             Start Saving Today
           </h2>
@@ -210,12 +172,7 @@ export const Features = () => {
           <Button
             onClick={navigateToSearch}
             size="lg"
-            className="px-12 py-5 text-lg font-medium transition-all duration-300 hover:scale-105"
-            style={{
-              background: "linear-gradient(135deg, #22d3ee, #22c55e)",
-              border: "none",
-              boxShadow: "0 6px 25px rgba(34, 211, 238, 0.4)",
-            }}
+            className="px-12 py-5 text-lg font-medium transition-all duration-300 hover:scale-105 bg-gradient-to-br from-cyan-400 to-green-500 border-none shadow-lg shadow-cyan-300/40"
           >
             Get Started Free
             <ArrowRight className="ml-2 h-6 w-6" />

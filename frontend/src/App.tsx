@@ -15,7 +15,7 @@ import { PageLoadingFallback } from "@/components/LoadingFallback";
 const Index = lazy(() => import("./pages/Index"));
 const Features = lazy(() => import("./pages/Features").then(module => ({ default: module.Features })));
 const About = lazy(() => import("./pages/About").then(module => ({ default: module.About })));
-const HowItWorks = lazy(() => import("./pages/HowItWorks").then(module => ({ default: module.HowItWorks })));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Signin = lazy(() => import("./pages/Signin"));
 const GoogleAuth = lazy(() => import("./pages/GoogleAuth"));
