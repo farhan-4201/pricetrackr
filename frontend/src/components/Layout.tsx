@@ -1,6 +1,7 @@
 import { BarChart } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Navbar } from "./Navbar";
+import { useTheme } from "@/context/ThemeContext";
 
 const Footer = () => {
   return (
@@ -43,8 +44,6 @@ const Footer = () => {
             </div>
           </div>
 
-
-
           {/* Legal */}
           <div className="space-y-4">
             <h4 className="font-semibold text-white">Legal</h4>
@@ -82,12 +81,22 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const { theme } = useTheme();
   const isAuthPage = location.pathname === "/signin" || location.pathname === "/signup";
 
+  // Get styles based on theme
+  const contentStyles = {
+    backgroundColor: theme === 'dark' ? '#020617' : '#ffffff',
+    color: theme === 'dark' ? '#f1f5f9' : '#020617',
+    transition: 'background-color 0.3s ease, color 0.3s ease'
+  };
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#020617" }}>
+    <div className="min-h-screen flex flex-col" style={contentStyles}>
       {!isAuthPage && <Navbar />}
-      <main className={`flex-1 ${!isAuthPage ? 'pt-16' : ''}`}>{children}</main>
+      <main className={`flex-1 ${!isAuthPage ? 'pt-16' : ''}`} style={contentStyles}>
+        {children}
+      </main>
       {!isAuthPage && <Footer />}
     </div>
   );

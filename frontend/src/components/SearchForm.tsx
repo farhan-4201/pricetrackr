@@ -52,7 +52,7 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="flex flex-col md:flex-row gap-3 mb-6 p-1 rounded-xl border-2 border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50">
+    <form onSubmit={handleFormSubmit} className="flex flex-col md:flex-row gap-3 mb-6 p-1 rounded-xl border-2 border-cyan-400/30 bg-card/50 backdrop-blur-xl">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-400 w-5 h-5 pulse-glow" />
         <Input
@@ -62,22 +62,18 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
-          className="pl-10 pr-4 py-4 md:py-5 text-base md:text-lg border-cyan-400/30 bg-gradient-to-r from-slate-900/50 to-purple-900/50 glass-card text-white placeholder-cyan-300/50 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 hover-scale w-full"
+          className="pl-10 pr-4 py-4 md:py-5 text-base md:text-lg border-cyan-400/30 bg-card/50 backdrop-blur-xl text-foreground placeholder-muted-foreground focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 hover-scale w-full"
         />
 
         {showSuggestions && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-            style={{
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            }}
+            className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto backdrop-blur-xl"
           >
             {/* Product suggestions section */}
             {suggestions.some(s => s.type === 'product') && (
               <>
-                <div className="p-2 border-b border-gray-700">
+                <div className="p-2 border-b border-border">
                   <div className="flex items-center space-x-2 text-cyan-400 text-sm">
                     <Search className="w-4 h-4" />
                     <span>Product suggestions</span>
@@ -88,15 +84,15 @@ export const SearchForm = ({ searchQuery, setSearchQuery, onSearch, loading }: S
                   .map((suggestion, index) => (
                     <div
                       key={`product-${suggestion.text}`}
-                      className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-gray-700 transition-colors ${
-                        index === selectedSuggestionIndex ? 'bg-gray-700 text-cyan-400' : 'text-white'
+                      className={`px-4 py-3 cursor-pointer flex items-center space-x-3 hover:bg-accent transition-colors ${
+                        index === selectedSuggestionIndex ? 'bg-accent text-cyan-400' : 'text-foreground'
                       }`}
                       onClick={() => handleSuggestionClick(suggestion)}
                     >
                       <Search className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                       <span className="truncate flex-1">{suggestion.text}</span>
                       {suggestion.marketplace && (
-                        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                           {suggestion.marketplace}
                         </span>
                       )}

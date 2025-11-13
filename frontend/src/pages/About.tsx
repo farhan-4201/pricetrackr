@@ -79,7 +79,6 @@ export const About = () => {
     <div
       className="w-full min-h-screen text-white"
       style={{
-        backgroundColor: "#020617",
         scrollBehavior: "smooth",
       }}
     >

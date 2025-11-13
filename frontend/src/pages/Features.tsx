@@ -63,7 +63,7 @@ export const Features = () => {
   ];
 
   return (
-    <div style={{ background: "#020617" }} className="pt-16 overflow-x-hidden">
+    <div className="pt-16 overflow-x-hidden text-foreground">
       {/* HERO SECTION */}
       <section
         data-aos="fade-up"
@@ -87,10 +87,10 @@ export const Features = () => {
               Everything You Need
             </span>
             <br />
-            <span className="text-white">To Save Smart</span>
+            <span className="text-foreground">To Save Smart</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             Explore intelligent tools that empower you to track, compare, and save
             across the world’s largest marketplaces. Built for shoppers who love data,
             and designed for effortless discovery.
@@ -150,7 +150,7 @@ export const Features = () => {
                     {feature.title}
                   </h3>
                 </div>
-                <p className="text-slate-300 text-lg">{feature.description}</p>
+                <p className="text-muted-foreground text-lg">{feature.description}</p>
               </button>
             ))}
           </div>

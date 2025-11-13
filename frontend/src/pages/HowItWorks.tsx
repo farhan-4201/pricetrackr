@@ -123,7 +123,7 @@ export const HowItWorks = () => {
   ];
 
   return (
-    <div style={{ background: "#020617" }} className="pt-16 overflow-x-hidden">
+    <div className="pt-16 overflow-x-hidden">
       {/* HERO SECTION */}
       <section
         data-aos="fade-up"

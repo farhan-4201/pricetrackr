@@ -22,14 +22,7 @@ export const SearchDashboard = () => {
   return (
     <ErrorBoundary>
       <ComparisonProvider>
-        <div
-          className="w-full min-h-screen py-12"
-          style={{
-            background: "rgba(15, 23, 42, 0.5)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-          }}
-        >
+        <div className="w-full min-h-screen py-12">
           <div className="w-full max-w-7xl mx-auto px-4 md:px-6">
 
             {/* Quick Actions */}

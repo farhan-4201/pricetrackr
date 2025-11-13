@@ -31,9 +31,8 @@ export const Index = () => {
 
   return (
     <div
-      className="w-full text-white"
+      className="w-full text-foreground"
       style={{
-        backgroundColor: "#020617",
         scrollBehavior: "smooth",
       }}
     >
@@ -71,11 +70,11 @@ export const Index = () => {
                 Never Overpay
               </span>
               <br />
-              <span className="text-white">Again</span>
+              <span className="text-foreground">Again</span>
             </h1>
 
             <div
-              className="text-lg md:text-xl text-slate-300 leading-relaxed space-y-5"
+              className="text-lg md:text-xl text-muted-foreground leading-relaxed space-y-5"
               data-aos="fade-up"
             >
               <p>
@@ -166,22 +165,14 @@ export const Index = () => {
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
           {/* Left Side - CTA Content */}
           <div className="space-y-8" data-aos="fade-right">
-            <div
-              className="p-12 rounded-3xl border relative overflow-hidden"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                backdropFilter: "blur(18px)",
-                border: "1px solid rgba(34,211,238,0.25)",
-                boxShadow: "0 25px 80px rgba(0,0,0,0.45)",
-              }}
-            >
+            <div className="p-12 rounded-3xl border relative overflow-hidden bg-card/60 backdrop-blur-xl border-border/30 shadow-2xl">
               <div className="absolute inset-0 opacity-25 bg-gradient-to-r from-cyan-400/15 via-green-400/15 to-purple-400/15" />
 
               <div className="relative z-10 space-y-8">
                 <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-green-400 to-purple-400 bg-clip-text text-transparent">
                   Ready to Start Saving?
                 </h2>
-                <p className="text-xl text-slate-300 leading-relaxed">
+                <p className="text-xl text-muted-foreground leading-relaxed">
                   Sign up today and let PriceTracker do the hard work — discover real deals and shop smarter.
                 </p>
 
@@ -198,7 +189,7 @@ export const Index = () => {
                   Get Started Free
                 </Button>
 
-                <div className="flex flex-col space-y-4 text-lg text-slate-400">
+                <div className="flex flex-col space-y-4 text-lg text-muted-foreground">
                   {["Free to start", "No credit card", "Cancel anytime"].map(
                     (text, i) => (
                       <div
