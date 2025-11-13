@@ -1,5 +1,5 @@
 import { BarChart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Navbar } from "./Navbar";
 
 const Footer = () => {
@@ -81,11 +81,14 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/signin" || location.pathname === "/signup";
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#020617" }}>
-      <Navbar />
-      <main className="flex-1 pt-16">{children}</main>
-      <Footer />
+      {!isAuthPage && <Navbar />}
+      <main className={`flex-1 ${!isAuthPage ? 'pt-16' : ''}`}>{children}</main>
+      {!isAuthPage && <Footer />}
     </div>
   );
 };

@@ -101,7 +101,7 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/signup" element={<Signin />} />
                   <Route path="/signin" element={<Signin />} />
                   <Route path="/auth/google" element={<GoogleAuth />} />
 

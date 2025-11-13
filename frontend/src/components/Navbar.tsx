@@ -286,14 +286,6 @@ export const Navbar = () => {
               <>
                 <Link to="/signin">
                   <Button
-                    variant="ghost"
-                    className="text-slate-300 hover:text-cyan-400 hover:bg-transparent transition-all duration-300"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/signup">
-                  <Button
                     className="relative overflow-hidden font-medium transition-all duration-300 hover:scale-105"
                     style={{
                       background: "linear-gradient(135deg, #22d3ee, #22c55e)",
@@ -441,19 +433,6 @@ export const Navbar = () => {
             ) : (
               <>
                 <Link to="/signin" onClick={() => setIsMenuOpen(false)}>
-                  <Button
-                    variant="ghost"
-                    className="w-full text-slate-300 hover:text-cyan-400 py-3 text-lg"
-                    style={{
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid rgba(34, 211, 238, 0.2)",
-                    }}
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-
-                <Link to="/signup" onClick={() => setIsMenuOpen(false)}>
                   <Button
                     className="w-full py-3 text-lg font-medium"
                     style={{
