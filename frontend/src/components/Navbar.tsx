@@ -209,7 +209,7 @@ export const Navbar = () => {
                   <DropdownMenuContent
                     align="end"
                     sideOffset={8}
-                    className="w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 text-white shadow-2xl"
+                    className="w-60 sm:w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 text-white shadow-2xl"
                     style={{
                       background: "rgba(15, 23, 42, 0.95)",
                       backdropFilter: "blur(12px)",

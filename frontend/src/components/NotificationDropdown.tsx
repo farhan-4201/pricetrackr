@@ -35,17 +35,17 @@ export const NotificationDropdown = () => {
 
   const fetchNotifications = async () => {
     if (!isAuthenticated) return;
-    
+
     try {
       setLoading(true);
       const response = await notificationsAPI.getNotifications({ limit: 10 });
-      
+
       console.log('[NotificationDropdown] Fetched notifications:', response);
-      
+
       // Handle different response formats
-      const notificationData = Array.isArray(response) ? response : (response.data || []);
+      const notificationData: Notification[] = Array.isArray(response) ? response : [];
       setNotifications(notificationData);
-      
+
       // Count unread notifications
       const unread = notificationData.filter((n: Notification) => !n.isRead).length;
       setUnreadCount(unread);
@@ -152,7 +152,7 @@ export const NotificationDropdown = () => {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-96 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 text-white shadow-2xl p-0"
+        className="w-80 sm:w-96 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 text-white shadow-2xl p-0"
         style={{
           background: "rgba(15, 23, 42, 0.95)",
           backdropFilter: "blur(12px)",

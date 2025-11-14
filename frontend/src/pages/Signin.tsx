@@ -72,10 +72,10 @@ export default function SignIn() {
   const currentAnimation = isSignup ? "/Profile.json" : "/Login.json";
 
   return (
-    <div className="min-h-screen flex bg-[#020617] overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#020617] overflow-hidden">
       {/* Left Side - Form */}
       <motion.div
-        className="w-1/2 flex items-center justify-center px-8"
+        className="w-full md:w-1/2 flex items-center justify-center px-4 md:px-8 py-8 md:py-0"
         initial={false}
         animate={{ x: isSignup ? "100%" : "0%" }}
         transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -371,7 +371,7 @@ export default function SignIn() {
 
       {/* Right Side - Animation */}
       <motion.div
-        className="w-1/2 flex items-center justify-center"
+        className="hidden md:flex w-1/2 items-center justify-center"
         initial={false}
         animate={{ x: isSignup ? "-100%" : "0%" }}
         transition={{ duration: 0.5, ease: "easeInOut" }}
