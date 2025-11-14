@@ -6,93 +6,103 @@ import { authenticate as auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// ✅ MINIMAL TEST ROUTE - Just to verify router loading
-router.get("/test-autocomplete", (req, res) => {
-  console.log("[TEST] Minimal test autocomplete route called");
-  res.json({
-    message: "Minimal test route working",
-    query: req.query.q,
-    timestamp: new Date().toISOString()
-  });
-});
-
 // ✅✅✅ AUTOCOMPLETE - REAL IMPLEMENTATION ✅✅✅
 router.get("/autocomplete", async (req, res) => {
   try {
-    console.log("[AUTOCOMPLETE] Real autocomplete route called with query:", req.query.q);
+    const rawQuery = req.query.q?.trim() || "";
+    console.log("[AUTOCOMPLETE] Query:", rawQuery);
 
-    const { q: query } = req.query;
-
-    if (!query || query.trim().length < 2) {
+    if (rawQuery.length < 2) {
       return res.json({
         suggestions: [],
         message: "Query too short",
-        query: query || ""
+        query: rawQuery
       });
     }
 
-    // Get recent search results from database for suggestions
+    const query = rawQuery.toLowerCase();
+
+    // 🔍 Fetch recent searches that have valid product results
     const recentSearches = await SearchResult.find({
-      query: { $regex: new RegExp(query.trim(), 'i') },
-      resultCount: { $gt: 0 }
+      resultCount: { $gt: 0 },
+      results: { $exists: true, $ne: [] },
+      "results.name": { $regex: query, $options: "i" }
     })
-    .sort({ searchedAt: -1 })
-    .limit(10)
-    .select('query results')
-    .lean();
+      .sort({ searchedAt: -1 })
+      .limit(10)
+      .select("results")
+      .lean();
 
     const suggestions = new Set();
 
-    // Extract product names from recent searches
+    // 🔎 Extract valid product names & ONLY the ones that are available
     recentSearches.forEach(search => {
+      if (!Array.isArray(search.results)) return;
+
       search.results.forEach(product => {
-        if (product.name && product.name.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.add(product.name);
+        if (
+          product?.name &&
+          product?.name.toLowerCase().includes(query) &&
+          product?.price &&                      // ❗ Must have price (means available)
+          product?.marketplace                   // ❗ Must belong to Daraz or PriceOye
+        ) {
+          suggestions.add(
+            JSON.stringify({
+              text: product.name,
+              marketplace: product.marketplace,
+              price: product.price,
+            })
+          );
         }
       });
     });
 
-    // If no suggestions from database, provide some popular product categories
+    // If no DB suggestions → fallback to common category keywords
     if (suggestions.size === 0) {
-      const popularSuggestions = [
-        "iPhone", "Samsung Galaxy", "MacBook", "Dell Laptop", "HP Printer",
-        "Nike Shoes", "Adidas", "Sony Headphones", "Apple Watch", "Gaming Mouse"
-      ].filter(item => item.toLowerCase().includes(query.toLowerCase()));
+      console.log("[AUTOCOMPLETE] No DB matches → Using fallback words");
 
-      popularSuggestions.forEach(item => suggestions.add(item));
+      const fallback = [
+        "iPhone", "Samsung Galaxy", "MacBook", "Gaming Mouse",
+        "Sony Headphones", "Apple Watch", "Dell Laptop"
+      ].filter(item => item.toLowerCase().includes(query));
+
+      fallback.forEach(item =>
+        suggestions.add(
+          JSON.stringify({
+            text: item,
+            marketplace: "Multiple",
+            price: null
+          })
+        )
+      );
     }
 
-    const suggestionArray = Array.from(suggestions).slice(0, 8).map(text => ({
-      text,
-      type: "product",
-      marketplace: "Multiple",
-      price: null
-    }));
+    // Convert Set → Array of objects
+    const formatted = Array.from(suggestions)
+      .map(item => JSON.parse(item))
+      .slice(0, 8)        // limit to 8 suggestions
+      .map(s => ({
+        text: s.text,
+        type: "product",
+        marketplace: s.marketplace,
+        price: s.price
+      }));
 
-    res.json({
-      suggestions: suggestionArray,
-      count: suggestionArray.length,
-      query: query.trim(),
-      message: "Real suggestions from search history"
+    return res.json({
+      suggestions: formatted,
+      count: formatted.length,
+      query,
+      message: "Filtered suggestions from real available products"
     });
 
   } catch (error) {
-    console.error("[AUTOCOMPLETE] Error:", error);
-    // Fallback to basic suggestions on error
-    const fallbackSuggestions = [
-      "iPhone", "Samsung", "MacBook", "Dell", "HP"
-    ].filter(item => item.toLowerCase().includes(query.toLowerCase()));
+    console.error("[AUTOCOMPLETE ERROR]", error);
 
-    res.json({
-      suggestions: fallbackSuggestions.map(text => ({
-        text,
-        type: "product",
-        marketplace: "Multiple",
-        price: null
-      })),
-      count: fallbackSuggestions.length,
-      query: query.trim(),
-      message: "Fallback suggestions due to error"
+    return res.json({
+      suggestions: [],
+      count: 0,
+      query: req.query.q,
+      message: "Error occurred, no suggestions"
     });
   }
 });
@@ -113,8 +123,68 @@ router.post("/scrape/daraz", async (req, res) => {
       });
     }
 
-    console.log(`[DARAZ SCRAPE] Starting scrape for: ${query}`);
+    console.log(`[DARAZ SCRAPE] Checking DB for existing results for: ${query}`);
+
+    // Check for existing Daraz results in DB first
+    const existingResult = await SearchResult.findOne({
+      query: { $regex: new RegExp(`^${query}$`, 'i') },
+      "results.marketplace": "Daraz"
+    }).sort({ searchedAt: -1 });
+
+    if (existingResult) {
+      const darazProducts = existingResult.results.filter(p => p.marketplace === 'Daraz');
+      if (darazProducts.length > 0) {
+        console.log(`[DARAZ SCRAPE] Found ${darazProducts.length} existing Daraz products in DB`);
+        return res.json({
+          success: true,
+          products: darazProducts,
+          total: darazProducts.length,
+          marketplace: "Daraz",
+          query,
+          timestamp: existingResult.searchedAt.toISOString(),
+          cached: true
+        });
+      }
+    }
+
+    // No existing results, scrape fresh data
+    console.log(`[DARAZ SCRAPE] No existing results found, scraping for: ${query}`);
     const result = await scrapeDaraz(query);
+
+    // Save to database if successful
+    if (result.success && result.products && result.products.length > 0) {
+      try {
+        // Check if we already have a search result for this query
+        let searchResult = await SearchResult.findOne({
+          query: { $regex: new RegExp(`^${query}$`, 'i') }
+        }).sort({ searchedAt: -1 });
+
+        if (searchResult) {
+          // Add Daraz results to existing search result
+          const existingDaraz = searchResult.results.filter(p => p.marketplace === 'Daraz');
+          if (existingDaraz.length === 0) {
+            searchResult.results.push(...result.products);
+            searchResult.resultCount = searchResult.results.length;
+            searchResult.searchedAt = new Date();
+            await searchResult.save();
+            console.log(`[DARAZ SCRAPE] Added ${result.products.length} Daraz products to existing search result`);
+          }
+        } else {
+          // Create new search result
+          const newSearchResult = new SearchResult({
+            query,
+            results: result.products,
+            resultCount: result.products.length,
+            searchedAt: new Date()
+          });
+          await newSearchResult.save();
+          console.log(`[DARAZ SCRAPE] Saved ${result.products.length} new Daraz products to DB`);
+        }
+      } catch (dbError) {
+        console.error("[DARAZ SCRAPE] Failed to save to DB:", dbError);
+        // Don't fail the request if DB save fails
+      }
+    }
 
     res.json({
       success: result.success,
@@ -122,7 +192,8 @@ router.post("/scrape/daraz", async (req, res) => {
       total: result.products?.length || 0,
       marketplace: "Daraz",
       query,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      cached: false
     });
 
   } catch (error) {

@@ -79,15 +79,15 @@ export const scrapePriceOye = async (query) => {
 export const scraperController = async (req, res) => {
   const { query } = req.body;
   if (!query) {
-    return res.status(400).json({ 
-      success: false, 
+    return res.status(400).json({
+      success: false,
       message: "Search query is required.",
-      error: "MISSING_QUERY" 
+      error: "MISSING_QUERY"
     });
   }
 
   try {
-    // Check for cached results (within last 1 hour)
+    // Check for cached results (within last 1 hour) - but handle Daraz separately
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const cachedResult = await SearchResult.findOne({
       query: { $regex: new RegExp(`^${query}$`, 'i') },
@@ -95,36 +95,91 @@ export const scraperController = async (req, res) => {
       resultCount: { $gt: 0 }
     }).sort({ searchedAt: -1 });
 
-    if (cachedResult) {
-      console.log(`[Controller] Returning cached results for: ${query}`);
-      return res.json({
-        success: true,
-        query: cachedResult.query,
-        products: cachedResult.results,
-        total: cachedResult.resultCount,
-        sources: {
-          daraz: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Daraz').length },
-          priceoye: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'PriceOye').length },
-          telemart: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Telemart').length },
-          ebay: { success: true, count: cachedResult.results.filter(p => p.marketplace === 'Ebay').length },
-        },
-        timestamp: cachedResult.searchedAt.toISOString(),
-        cached: true,
-      });
-    }
-
-    // No cache, scrape fresh data
-    console.log(`[Controller] No cache found, scraping fresh data for: ${query}`);
-    
-    const scrapers = [
-      { fn: darazScraper, name: "Daraz", timeout: 15000 },
-      { fn: priceOyeScraper, name: "PriceOye", timeout: 30000 },
-      { fn: telemartScraper, name: "Telemart", timeout: 8000 },
-      { fn: ebayScraper, name: "Ebay", timeout: 20000 },
-    ];
-
     let allProducts = [];
     const sources = {};
+    let isFullyCached = false;
+
+    if (cachedResult) {
+      // Check if cached result has all marketplaces or if we need to scrape some
+      const cachedDaraz = cachedResult.results.filter(p => p.marketplace === 'Daraz');
+      const cachedPriceOye = cachedResult.results.filter(p => p.marketplace === 'PriceOye');
+      const cachedTelemart = cachedResult.results.filter(p => p.marketplace === 'Telemart');
+      const cachedEbay = cachedResult.results.filter(p => p.marketplace === 'Ebay');
+
+      // For Daraz, we always use cached if available (since we check DB first)
+      if (cachedDaraz.length > 0) {
+        allProducts.push(...cachedDaraz);
+        sources.daraz = { success: true, count: cachedDaraz.length };
+        console.log(`[Controller] Using cached Daraz results: ${cachedDaraz.length} products`);
+      }
+
+      // For other marketplaces, use cached if available
+      if (cachedPriceOye.length > 0) {
+        allProducts.push(...cachedPriceOye);
+        sources.priceoye = { success: true, count: cachedPriceOye.length };
+      }
+      if (cachedTelemart.length > 0) {
+        allProducts.push(...cachedTelemart);
+        sources.telemart = { success: true, count: cachedTelemart.length };
+      }
+      if (cachedEbay.length > 0) {
+        allProducts.push(...cachedEbay);
+        sources.ebay = { success: true, count: cachedEbay.length };
+      }
+
+      // If we have results from all marketplaces, return cached
+      if (allProducts.length === cachedResult.resultCount) {
+        console.log(`[Controller] Returning fully cached results for: ${query}`);
+        return res.json({
+          success: true,
+          query: cachedResult.query,
+          products: allProducts,
+          total: allProducts.length,
+          sources,
+          timestamp: cachedResult.searchedAt.toISOString(),
+          cached: true,
+        });
+      }
+    }
+
+    // Check for existing Daraz results in DB (even from older searches)
+    let darazResults = [];
+    if (!sources.daraz) {
+      const darazCached = await SearchResult.findOne({
+        query: { $regex: new RegExp(`^${query}$`, 'i') },
+        "results.marketplace": "Daraz"
+      }).sort({ searchedAt: -1 });
+
+      if (darazCached) {
+        darazResults = darazCached.results.filter(p => p.marketplace === 'Daraz');
+        if (darazResults.length > 0) {
+          allProducts.push(...darazResults);
+          sources.daraz = { success: true, count: darazResults.length };
+          console.log(`[Controller] Found existing Daraz results in DB: ${darazResults.length} products`);
+        }
+      }
+    }
+
+    // Scrape remaining marketplaces
+    console.log(`[Controller] Scraping remaining marketplaces for: ${query}`);
+
+    const scrapers = [];
+
+    // Only add Daraz scraper if we don't have cached results
+    if (!sources.daraz) {
+      scrapers.push({ fn: darazScraper, name: "Daraz", timeout: 15000 });
+    }
+
+    // Add other scrapers if not cached
+    if (!sources.priceoye) {
+      scrapers.push({ fn: priceOyeScraper, name: "PriceOye", timeout: 30000 });
+    }
+    if (!sources.telemart) {
+      scrapers.push({ fn: telemartScraper, name: "Telemart", timeout: 8000 });
+    }
+    if (!sources.ebay) {
+      scrapers.push({ fn: ebayScraper, name: "Ebay", timeout: 20000 });
+    }
 
     const promises = scrapers.map(async ({ fn, name, timeout }) => {
       try {
@@ -143,7 +198,7 @@ export const scraperController = async (req, res) => {
           }));
           allProducts.push(...products);
           sources[name.toLowerCase()] = { success: true, count: products.length };
-          console.log(`[Controller] ${name} returned ${products.length} products`);
+          console.log(`[Controller] ${name} scraped ${products.length} products`);
         } else if (result && result.error) {
           // Scraper returned an error object
           console.error(`[Controller] ${name} scraper returned error:`, result.error);
@@ -168,22 +223,24 @@ export const scraperController = async (req, res) => {
       total: allProducts.length,
       sources,
       timestamp: new Date().toISOString(),
-      cached: false,
+      cached: isFullyCached,
     };
 
-    // Save to database for caching
-    try {
-      const searchResult = new SearchResult({
-        query,
-        results: allProducts,
-        resultCount: allProducts.length,
-        searchedAt: new Date()
-      });
-      await searchResult.save();
-      console.log(`[Controller] Saved ${allProducts.length} products to cache for query: ${query}`);
-    } catch (dbError) {
-      console.error("Failed to save search result:", dbError);
-      // Don't fail the request if caching fails
+    // Save to database for caching (only if we scraped new data)
+    if (scrapers.length > 0) {
+      try {
+        const searchResult = new SearchResult({
+          query,
+          results: allProducts,
+          resultCount: allProducts.length,
+          searchedAt: new Date()
+        });
+        await searchResult.save();
+        console.log(`[Controller] Saved ${allProducts.length} products to cache for query: ${query}`);
+      } catch (dbError) {
+        console.error("Failed to save search result:", dbError);
+        // Don't fail the request if caching fails
+      }
     }
 
     res.json(response);
