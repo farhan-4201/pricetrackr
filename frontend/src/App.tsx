@@ -3,13 +3,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { initGlobalScrollReveal } from "./hooks/useScrollReveal";
 import { PageLoadingFallback } from "@/components/LoadingFallback";
+import LoadingScreen from "./components/LoadingScreen";
 
 // Lazy load components for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -46,82 +47,99 @@ const ScrollRevealProvider = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <ScrollRevealProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Layout>
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/features" element={<Features />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/how-it-works" element={<HowItWorks />} />
+const App = () => {
+  const [isLoading, setIsLoading] = useState(true);
 
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <ProtectedRoute>
-                          <Dashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/watchlist"
-                      element={
-                        <ProtectedRoute>
-                          <WatchlistPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/settings"
-                      element={
-                        <ProtectedRoute>
-                          <Settings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/notifications"
-                      element={
-                        <ProtectedRoute>
-                          <Notifications />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="/signup" element={<Signin />} />
-                    <Route path="/signin" element={<Signin />} />
-                    <Route path="/auth/google" element={<GoogleAuth />} />
+  useEffect(() => {
+    // Show loading screen for 3 seconds
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
 
-                    {/* Footer Pages */}
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/terms-of-service" element={<TermsOfService />} />
-                    <Route path="/cookie-policy" element={<CookiePolicy />} />
+    return () => clearTimeout(timer);
+  }, []);
 
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </Layout>
-            </BrowserRouter>
-          </ScrollRevealProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ScrollRevealProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Layout>
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/features" element={<Features />} />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/how-it-works" element={<HowItWorks />} />
+
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/watchlist"
+                        element={
+                          <ProtectedRoute>
+                            <WatchlistPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/settings"
+                        element={
+                          <ProtectedRoute>
+                            <Settings />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/notifications"
+                        element={
+                          <ProtectedRoute>
+                            <Notifications />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="/signup" element={<Signin />} />
+                      <Route path="/signin" element={<Signin />} />
+                      <Route path="/auth/google" element={<GoogleAuth />} />
+
+                      {/* Footer Pages */}
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/terms-of-service" element={<TermsOfService />} />
+                      <Route path="/cookie-policy" element={<CookiePolicy />} />
+
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </Layout>
+              </BrowserRouter>
+            </ScrollRevealProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
