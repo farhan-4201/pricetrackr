@@ -69,6 +69,21 @@ export default function Notifications() {
     fetchNotifications();
   }, []);
 
+  // Listen for watchlist additions to refresh notifications immediately
+  useEffect(() => {
+    const handleWatchlistAdd = () => {
+      console.log('[Notifications] Watchlist item added, refreshing notifications');
+      fetchNotifications();
+    };
+
+    // Listen for custom event when watchlist item is added
+    window.addEventListener('watchlistItemAdded', handleWatchlistAdd);
+
+    return () => {
+      window.removeEventListener('watchlistItemAdded', handleWatchlistAdd);
+    };
+  }, []);
+
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await notificationsAPI.markAsRead(notificationId);

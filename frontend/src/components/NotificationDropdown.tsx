@@ -60,10 +60,27 @@ export const NotificationDropdown = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      
+
       // Poll for new notifications every 30 seconds
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  // Listen for watchlist additions to refresh notifications immediately
+  useEffect(() => {
+    if (isAuthenticated) {
+      const handleWatchlistAdd = () => {
+        console.log('[NotificationDropdown] Watchlist item added, refreshing notifications');
+        fetchNotifications();
+      };
+
+      // Listen for custom event when watchlist item is added
+      window.addEventListener('watchlistItemAdded', handleWatchlistAdd);
+
+      return () => {
+        window.removeEventListener('watchlistItemAdded', handleWatchlistAdd);
+      };
     }
   }, [isAuthenticated]);
 
@@ -104,10 +121,14 @@ export const NotificationDropdown = () => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      case "price_alert":
+        return "🚨";
       case "price_drop":
         return "💰";
       case "watchlist":
         return "❤️";
+      case "account":
+        return "👤";
       case "system":
         return "🔔";
       default:
@@ -117,12 +138,16 @@ export const NotificationDropdown = () => {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
+      case "price_alert":
+        return "bg-red-500/10 text-red-500 border-red-500/20";
       case "price_drop":
         return "bg-green-500/10 text-green-500 border-green-500/20";
       case "watchlist":
         return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-      case "system":
+      case "account":
         return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+      case "system":
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20";
       default:
         return "bg-cyan-500/10 text-cyan-500 border-cyan-500/20";
     }

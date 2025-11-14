@@ -56,7 +56,7 @@ export const ComparisonFloatingPanel: React.FC = () => {
 
   return (
     <>
-      <Card className="fixed bottom-4 right-4 z-50 w-80 bg-slate-900/95 backdrop-blur-md border-slate-700 shadow-2xl">
+      <Card className="fixed bottom-4 right-4 z-50 w-72 sm:w-80 bg-slate-900/95 backdrop-blur-md border-slate-700 shadow-2xl">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">

@@ -89,6 +89,10 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           url: product.url,
         });
         setIsWishlisted(true);
+
+        // Dispatch custom event to notify other components (like NotificationDropdown)
+        window.dispatchEvent(new CustomEvent('watchlistItemAdded'));
+
         toast({
           title: "Added to watchlist",
           description: `Added ${product.name} to your watchlist`,
