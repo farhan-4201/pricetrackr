@@ -6,7 +6,7 @@ const LoadingScreen: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900">
       <div className="w-64 h-64">
         <DotLottieReact
-          src="/Sandy Loading.json"
+          src="/SandyLoading.json"
           loop
           autoplay
         />
