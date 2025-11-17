@@ -20,6 +20,7 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Signin = lazy(() => import("./pages/Signin"));
 const GoogleAuth = lazy(() => import("./pages/GoogleAuth"));
+const EmailVerification = lazy(() => import("./pages/EmailVerification"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const WatchlistPage = lazy(() => import("./pages/WatchlistPage"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -120,8 +121,9 @@ const App = () => {
                           </ProtectedRoute>
                         }
                       />
-                      <Route path="/signup" element={<Signin />} />
+                      <Route path="/signup" element={<Signup />} />
                       <Route path="/signin" element={<Signin />} />
+                      <Route path="/verify-email" element={<EmailVerification />} />
                       <Route path="/auth/google" element={<GoogleAuth />} />
 
                       {/* Footer Pages */}

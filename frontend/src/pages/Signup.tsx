@@ -37,7 +37,13 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    await signup(emailAddress, password, fullName, contactNumber);
+    const result = await signup(emailAddress, password, fullName, contactNumber);
+
+    // If signup requires verification, show success and redirect could be handled here
+    if (result?.requiresVerification) {
+      // User will see the message from the AuthContext
+      // We could redirect to a verification page or keep them on signup with a success message
+    }
   };
 
   return (

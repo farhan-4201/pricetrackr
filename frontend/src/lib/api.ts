@@ -327,11 +327,18 @@ interface LoginData {
   password: string;
 }
 
+interface RegisterResponse {
+  message: string;
+  user: User & { isVerified?: boolean };
+  requiresVerification?: boolean;
+  token?: string;
+}
+
 // Authentication API functions
 export const authAPI = {
   // Register a new user
-  register: async (userData: RegisterData): Promise<LoginResponse> => {
-    return apiClient.post<LoginResponse>('/users/register', userData);
+  register: async (userData: RegisterData): Promise<RegisterResponse> => {
+    return apiClient.post<RegisterResponse>('/users/register', userData);
   },
 
   // Login user
@@ -357,6 +364,21 @@ export const authAPI = {
   // Get all users (admin only)
   getUsers: async (): Promise<User[]> => {
     return apiClient.get<User[]>('/users');
+  },
+
+  // Verify email
+  verifyEmail: async (token: string): Promise<{ message: string; success: boolean }> => {
+    return apiClient.post<{ message: string; success: boolean }>('/users/verify-email', { token });
+  },
+
+  // Resend verification email
+  resendVerification: async (emailAddress: string): Promise<{ message: string }> => {
+    return apiClient.post<{ message: string }>('/users/resend-verification', { emailAddress });
+  },
+
+  // Check verification status
+  checkVerificationStatus: async (emailAddress: string): Promise<{ emailAddress: string; isVerified: boolean; fullName: string }> => {
+    return apiClient.get<{ emailAddress: string; isVerified: boolean; fullName: string }>(`/users/verification-status/${encodeURIComponent(emailAddress)}`);
   },
 };
 

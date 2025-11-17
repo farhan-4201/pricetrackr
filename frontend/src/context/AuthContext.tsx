@@ -18,10 +18,12 @@ interface AuthContextType {
   loading: boolean;
   error: string[] | string | null;
   signin: (emailAddress: string, password: string) => Promise<{ success: boolean; error?: string | string[] }>;
-  signup: (emailAddress: string, password: string, fullName: string, contactNumber: string) => Promise<{ success: boolean; error?: string | string[] }>;
+  signup: (emailAddress: string, password: string, fullName: string, contactNumber: string) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string | string[] }>;
   signout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
+  requiresVerification?: boolean;
+  emailForVerification?: string | null;
 }
 
 // Provide a properly typed default value for the context
@@ -195,14 +197,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         contactNumber
       });
 
-      // Validate and normalize user object
-      const normalizedUser = validateAndNormalizeUser(response.user);
+      // Check if registration requires verification
+      if (response.requiresVerification) {
+        toast.success('Account created successfully! Please check your email to verify your account.');
+        return {
+          success: true,
+          requiresVerification: true,
+          error: undefined
+        };
+      }
 
-      // Store user data and token
-      setUser(normalizedUser);
-      localStorage.setItem('user', JSON.stringify(normalizedUser));
-      localStorage.setItem('token', response.token);
+      // If registration returns a token (e.g., Google OAuth), proceed as before
+      if (response.token && response.user) {
+        // Validate and normalize user object
+        const normalizedUser = validateAndNormalizeUser(response.user);
 
+        // Store user data and token
+        setUser(normalizedUser);
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        localStorage.setItem('token', response.token);
+
+        toast.success('Account created and verified successfully!');
+        return { success: true };
+      }
+
+      // Fallback success response
       toast.success('Account created successfully!');
       return { success: true };
     } catch (error) {
@@ -219,13 +238,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } catch {
           // If parsing fails, use default message
         }
+      } else if (err.message.startsWith('HTTP 403:')) {
+        // Handle verification required error
+        const jsonPart = err.message.slice(10);
+        try {
+          const errorData = JSON.parse(jsonPart);
+          if (errorData.requiresVerification) {
+            errorMessage = 'Please verify your email address before signing in. Check your email for the verification link.';
+          }
+        } catch {
+          // If parsing fails, use default message
+        }
       } else {
         errorMessage = err.message;
       }
 
       setError(errorMessage);
       toast.error(typeof errorMessage === 'string' ? errorMessage : errorMessage.join(', '));
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: errorMessage,
+        requiresVerification: errorMessage.includes('verify your email')
+      };
     } finally {
       setLoading(false);
     }
