@@ -15,36 +15,37 @@ export default function WatchlistPage() {
   const [selectedMarketplace, setSelectedMarketplace] = useState("all");
   const { toast } = useToast();
 
+  // Only Daraz, PriceOye, Telemart
   const marketplaceColors: { [key: string]: string } = {
     daraz: "#22d3ee",
     priceoye: "#ff4081",
-    amazon: "#fb923c",
-    ebay: "#3b82f6",
-    aliexpress: "#ef4444",
+    telemart: "#f59e0b",
   };
 
-  const marketplaces = ["all", ...Object.keys(marketplaceColors)];
+  const marketplaces = ["all", "daraz", "priceoye", "telemart"];
 
-  // Fetch watchlist items
-  const fetchWatchlist = async () => {
-    try {
-      setLoading(true);
-      const items = await watchlistAPI.getWatchlist();
-      setWatchlistItems(items);
-      setFilteredItems(items);
-    } catch (error) {
-      console.error("Failed to fetch watchlist:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load watchlist. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchWatchlist = async () => {
+      try {
+        setLoading(true);
+        const items = await watchlistAPI.getWatchlist();
+        setWatchlistItems(items);
+        setFilteredItems(items);
+      } catch (error) {
+        console.error("Failed to fetch watchlist:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load watchlist. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Filter items based on search and marketplace
+    fetchWatchlist();
+  }, []);
+
   useEffect(() => {
     let filtered = watchlistItems;
 
@@ -61,10 +62,6 @@ export default function WatchlistPage() {
 
     setFilteredItems(filtered);
   }, [watchlistItems, searchQuery, selectedMarketplace]);
-
-  useEffect(() => {
-    fetchWatchlist();
-  }, []);
 
   const handleRemoveItem = async (itemId: string, itemName: string) => {
     try {
@@ -121,35 +118,23 @@ export default function WatchlistPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Animated Background Glow */}
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-        style={{
-          background: "radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.1) 0%, transparent 70%)"
-        }}
-      />
 
-      {/* Product Image */}
       <div className="relative mb-4 overflow-hidden rounded-lg">
         <img
           src={item.image || "/default-product.png"}
           alt={item.name}
           className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-500"
-          style={{
-            border: "1px solid rgba(34, 211, 238, 0.1)"
-          }}
+          style={{ border: "1px solid rgba(34, 211, 238, 0.1)" }}
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.src = "/default-product.png";
           }}
         />
 
-        {/* Category Badge */}
         <Badge
           className="absolute top-2 left-2 font-medium"
           style={{
             background: "rgba(34, 211, 238, 0.2)",
-            backdropFilter: "blur(8px)",
             border: "1px solid rgba(34, 211, 238, 0.3)",
             color: "#22d3ee"
           }}
@@ -157,13 +142,11 @@ export default function WatchlistPage() {
           {item.category || "General"}
         </Badge>
 
-        {/* Tracking Badge */}
         {item.isTracking && (
           <Badge
             className="absolute top-2 right-2 font-medium"
             style={{
               background: "rgba(34, 197, 94, 0.2)",
-              backdropFilter: "blur(8px)",
               border: "1px solid rgba(34, 197, 94, 0.3)",
               color: "#22c55e"
             }}
@@ -173,18 +156,17 @@ export default function WatchlistPage() {
         )}
       </div>
 
-      {/* Product Info */}
-      <div className="space-y-3 relative z-10 flex-grow">
-        <h3 className="font-semibold text-lg leading-tight text-white group-hover:text-cyan-400 transition-colors duration-300 truncate">
+      <div className="space-y-3 flex-grow">
+        <h3 className="font-semibold text-lg text-white truncate group-hover:text-cyan-400 transition-colors duration-300">
           {item.name}
         </h3>
 
-        {/* Price Section */}
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <span className="text-xl font-bold bg-gradient-to-r from-green-400 to-cyan-400 bg-clip-text text-transparent">
               {item.currentPrice ? `Rs. ${item.currentPrice.toLocaleString()}` : "Price unavailable"}
             </span>
+
             <div className="flex items-center space-x-2">
               <div
                 className="w-3 h-3 rounded-full"
@@ -193,29 +175,28 @@ export default function WatchlistPage() {
                   boxShadow: `0 0 10px ${marketplaceColors[item.marketplace]}30`
                 }}
               />
-              <span className="capitalize text-sm text-slate-400">{item.marketplace}</span>
+              <span className="capitalize text-sm text-slate-400">
+                {item.marketplace}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Added Date */}
         <div className="text-xs text-slate-500">
           Added {new Date(item.addedAt).toLocaleDateString()}
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex space-x-2 pt-4 relative z-10">
+      <div className="flex space-x-2 pt-4">
         <Button
-          className="flex-1 font-medium transition-all duration-300"
+          className="flex-1 font-medium"
           style={{
             background: "linear-gradient(135deg, #22d3ee, #22c55e)",
-            border: "none",
-            boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)"
+            border: "none"
           }}
           onClick={(e) => {
             e.stopPropagation();
-            window.open(item.url, '_blank');
+            window.open(item.url, "_blank");
           }}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
@@ -258,26 +239,11 @@ export default function WatchlistPage() {
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-
-      {/* Hover Glow Border */}
-      <div
-        className="absolute inset-0 rounded-xl pointer-events-none transition-opacity duration-500"
-        style={{
-          background: "linear-gradient(45deg, transparent, rgba(34, 211, 238, 0.1), transparent)",
-          padding: "1px"
-        }}
-      >
-        <div
-          className="w-full h-full rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-          style={{ background: "rgba(255, 255, 255, 0.05)" }}
-        />
-      </div>
     </motion.div>
   );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-6">
-      {/* Header */}
       <motion.div
         className="mb-8"
         initial={{ opacity: 0, y: -20 }}
@@ -286,15 +252,14 @@ export default function WatchlistPage() {
       >
         <div className="flex items-center space-x-3 mb-6">
           <Heart className="h-8 w-8 text-red-400" />
-          <h1 className="text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500">
+          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
             My Watchlist
           </h1>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search watchlist..."
               value={searchQuery}
@@ -308,18 +273,16 @@ export default function WatchlistPage() {
             <select
               value={selectedMarketplace}
               onChange={(e) => setSelectedMarketplace(e.target.value)}
-              className="bg-slate-800/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              className="bg-slate-800/50 border border-slate-600 rounded-lg px-3 py-2 text-white"
             >
-              {marketplaces.map(marketplace => (
-                <option key={marketplace} value={marketplace}>
-                  {marketplace === "all" ? "All Marketplaces" : marketplace.charAt(0).toUpperCase() + marketplace.slice(1)}
-                </option>
-              ))}
+              <option value="all">All Marketplaces</option>
+              <option value="daraz">Daraz</option>
+              <option value="priceoye">PriceOye</option>
+              <option value="telemart">Telemart</option>
             </select>
           </div>
         </div>
 
-        {/* Stats */}
         {!loading && (
           <div className="text-slate-400 text-sm">
             {filteredItems.length} of {watchlistItems.length} items
@@ -328,42 +291,21 @@ export default function WatchlistPage() {
         )}
       </motion.div>
 
-      {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center min-h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
         </div>
       ) : watchlistItems.length === 0 ? (
-        <motion.div
-          className="text-center py-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div className="text-center py-16" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Heart className="h-16 w-16 text-slate-600 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-400 mb-2">Your watchlist is empty</h2>
-          <p className="text-slate-500 mb-6">Start adding products you love to keep track of them here!</p>
-          <Button
-            onClick={() => window.location.href = '/dashboard'}
-            style={{
-              background: "linear-gradient(135deg, #22d3ee, #22c55e)",
-              border: "none",
-              boxShadow: "0 4px 15px rgba(34, 211, 238, 0.3)"
-            }}
-          >
-            Browse Products
-          </Button>
+          <p className="text-slate-500 mb-6">Start adding products you love!</p>
         </motion.div>
       ) : filteredItems.length === 0 ? (
-        <motion.div
-          className="text-center py-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div className="text-center py-16">
           <Search className="h-16 w-16 text-slate-600 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-400 mb-2">No items match your filters</h2>
-          <p className="text-slate-500">Try adjusting your search or filter criteria.</p>
+          <p className="text-slate-500">Try adjusting search or marketplace.</p>
         </motion.div>
       ) : (
         <motion.div
